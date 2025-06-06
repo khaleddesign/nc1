@@ -1,0 +1,36 @@
+*.sqlite*
+### Laravel – fichier .gitignore ###
+
+# Fichiers d’environnement (ne jamais partager tes clés / mots de passe)
+.env
+.env.*.backup
+
+# Dépendances PHP et Node – se régénèrent via composer / npm
+/vendor/
+/node_modules/
+
+# Dossiers et fichiers générés
+/public/build/
+/public/dist/
+/storage/*.key
+/storage/*.sqlite
+/storage/*.sqlite3
+/storage/*.log
+/storage/**/cache/*
+/storage/**/framework/views/*
+/bootstrap/cache/*.php
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Tests / rapports
+.phpunit.result.cache
+
+# Homestead (si tu utilises Homestead)
+/Homestead.yaml
+/Homestead.json
+
+# Si tu utilises SQLite pour le dev, ignore la BDD
+/database/database.sqlite
+
