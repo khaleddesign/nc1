@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Gate;
 class AuthServiceProvider extends ServiceProvider
 {
     protected $policies = [
-        Chantier::class => ChantierPolicy::class,
+        \App\Models\Chantier::class => \App\Policies\ChantierPolicy::class,
     ];
 
     public function boot()

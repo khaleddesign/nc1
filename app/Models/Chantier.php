@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+// ** On n’importe qu’une seule fois chaque classe externe **
 use App\Models\User;
 use App\Models\Etape;
 use App\Models\Document;
@@ -27,7 +28,7 @@ class Chantier extends Model
         'budget',
         'notes',
         'avancement_global',
-        // 'active' retiré car la table n'a pas cette colonne
+        'active', // si ce champ existe bien dans votre migration
     ];
 
     protected $casts = [
@@ -36,7 +37,7 @@ class Chantier extends Model
         'date_fin_effective' => 'date',
         'budget'             => 'decimal:2',
         'avancement_global'  => 'decimal:2',
-        // 'active' retiré
+        'active'             => 'boolean',
     ];
 
     // Relations

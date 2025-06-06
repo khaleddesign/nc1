@@ -1,5 +1,4 @@
 <?php
-// app/Http/Controllers/DashboardController.php
 
 namespace App\Http\Controllers;
 
@@ -18,7 +17,7 @@ class DashboardController extends Controller
     public function index()
     {
         $user = Auth::user();
-        
+
         switch ($user->role) {
             case 'admin':
                 return $this->dashboardAdmin();
@@ -31,60 +30,62 @@ class DashboardController extends Controller
         }
     }
 
+    // Tableau de bord ADMIN
     private function dashboardAdmin()
     {
+        $chantiers = Chantier::with(['client', 'commercial'])->orderBy('created_at', 'desc')->get();
+
         $stats = [
-            'total_chantiers' => Chantier::count(),
-            'chantiers_en_cours' => Chantier::where('statut', 'en_cours')->count(),
-            'chantiers_termines' => Chantier::where('statut', 'termine')->count(),
+            'total_chantiers' => $chantiers->count(),
+            'chantiers_en_cours' => $chantiers->where('statut', 'en_cours')->count(),
+            'chantiers_termines' => $chantiers->where('statut', 'termine')->count(),
+            'chantiers_planifies' => $chantiers->where('statut', 'planifie')->count(),
             'total_clients' => User::where('role', 'client')->count(),
             'total_commerciaux' => User::where('role', 'commercial')->count(),
-            'avancement_moyen' => Chantier::avg('avancement_global') ?? 0,
+            'avancement_moyen' => $chantiers->avg('avancement_global') ?? 0,
         ];
 
-        $chantiers_recents = Chantier::with(['client', 'commercial'])
-                                   ->orderBy('created_at', 'desc')
-                                   ->limit(10)
-                                   ->get();
+        $chantiers_recents = $chantiers->take(10);
 
         $chantiers_retard = Chantier::whereDate('date_fin_prevue', '<', now())
                                   ->where('statut', '!=', 'termine')
                                   ->with(['client', 'commercial'])
                                   ->get();
 
-        return view('dashboard.admin', compact('stats', 'chantiers_recents', 'chantiers_retard'));
+        return view('dashboard.admin', compact('stats', 'chantiers_recents', 'chantiers_retard', 'chantiers'));
     }
 
+    // Tableau de bord COMMERCIAL
     private function dashboardCommercial()
     {
         $user = Auth::user();
-        
-        // Chercher les chantiers du commercial
-        $mes_chantiers = collect(); // Collection vide par défaut
-        
-        // Vérifier si le modèle Chantier existe
-        if (class_exists('App\Models\Chantier')) {
-            $mes_chantiers = \App\Models\Chantier::where('commercial_id', $user->id)
+
+        $mes_chantiers = Chantier::where('commercial_id', $user->id)
                                  ->with(['client'])
+                                 ->orderBy('created_at', 'desc')
                                  ->get();
-        }
-    
+
         $stats = [
             'total_chantiers' => $mes_chantiers->count(),
             'en_cours' => $mes_chantiers->where('statut', 'en_cours')->count(),
             'termines' => $mes_chantiers->where('statut', 'termine')->count(),
             'avancement_moyen' => $mes_chantiers->avg('avancement_global') ?? 0,
         ];
-    
-        $notifications = collect(); // Vide pour l'instant
-    
+
+        $notifications = $user->notifications()
+                             ->where('lu', false)
+                             ->orderBy('created_at', 'desc')
+                             ->limit(5)
+                             ->get();
+
         return view('dashboard.commercial', compact('mes_chantiers', 'stats', 'notifications'));
     }
 
+    // Tableau de bord CLIENT
     private function dashboardClient()
     {
         $user = Auth::user();
-        
+
         $mes_chantiers = $user->chantiersClient()
                              ->with(['commercial', 'etapes', 'documents'])
                              ->orderBy('created_at', 'desc')
