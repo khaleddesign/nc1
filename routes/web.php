@@ -29,15 +29,24 @@ Route::middleware(['auth'])->group(function () {
     
     // Dashboard principal
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+    Route::get('/home', [DashboardController::class, 'index'])->name('home');
     
     // Gestion des chantiers
     Route::resource('chantiers', ChantierController::class);
+    Route::get('chantiers/{chantier}/etapes', [ChantierController::class, 'etapes'])->name('chantiers.etapes');
+    Route::get('chantiers/{chantier}/export', [ChantierController::class, 'export'])->name('chantiers.export');
+    Route::get('chantiers/calendrier/view', [ChantierController::class, 'calendrier'])->name('chantiers.calendrier');
+    Route::get('chantiers/search', [ChantierController::class, 'search'])->name('chantiers.search');
     
     // Gestion des étapes (nested routes)
     Route::prefix('chantiers/{chantier}')->group(function () {
         Route::post('etapes', [EtapeController::class, 'store'])->name('etapes.store');
         Route::put('etapes/{etape}', [EtapeController::class, 'update'])->name('etapes.update');
         Route::delete('etapes/{etape}', [EtapeController::class, 'destroy'])->name('etapes.destroy');
+        Route::post('etapes/{etape}/toggle', [EtapeController::class, 'toggleComplete'])->name('etapes.toggle');
+        Route::put('etapes/{etape}/progress', [EtapeController::class, 'updateProgress'])->name('etapes.progress');
+        Route::post('etapes/reorder', [EtapeController::class, 'reorder'])->name('etapes.reorder');
+        Route::get('etapes/json', [EtapeController::class, 'getEtapes'])->name('etapes.json');
     });
     
     // Gestion des documents
@@ -75,7 +84,7 @@ Route::middleware(['auth'])->group(function () {
     });
 });
 
-// Routes API pour les appels AJAX (optionnel)
+// Routes API pour les appels AJAX
 Route::middleware(['auth'])->prefix('api')->group(function () {
     Route::get('chantiers/{chantier}/avancement', function (App\Models\Chantier $chantier) {
         return response()->json([
@@ -96,13 +105,3 @@ Route::middleware(['auth'])->prefix('api')->group(function () {
         return response()->json(['count' => $count]);
     });
 });
-
-// app/Http/Kernel.php - Ajout du middleware de rôle
-// Dans le tableau $routeMiddleware, ajouter :
-// 'role' => \App\Http\Middleware\CheckRole::class,
-Auth::routes();
-
-Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
-
-Auth::routes();
-
