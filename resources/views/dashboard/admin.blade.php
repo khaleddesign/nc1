@@ -231,7 +231,7 @@
                             <small class="text-muted">Commerciaux</small>
                         </div>
                         <div class="col-4">
-                            <h4 class="mb-0">{{ User::where('role', 'admin')->count() }}</h4>
+                            <h4 class="mb-0">{{ \App\Models\User::where('role', 'admin')->count() }}</h4>
                             <small class="text-muted">Admins</small>
                         </div>
                     </div>
