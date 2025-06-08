@@ -9,13 +9,21 @@ use Illuminate\Support\Facades\Gate;
 
 class AuthServiceProvider extends ServiceProvider
 {
+    /**
+     * The model to policy mappings for the application.
+     *
+     * @var array<class-string, class-string>
+     */
     protected $policies = [
         \App\Models\Chantier::class => \App\Policies\ChantierPolicy::class,
     ];
 
-    public function boot()
+    /**
+     * Register any authentication / authorization services.
+     */
+    public function boot(): void
     {
-        $this->registerPolicies();
+        $this->registerPolicies(); // Ajout de cette ligne critique
 
         // Gates personnalisés
         Gate::define('admin-only', function ($user) {

@@ -81,12 +81,20 @@ Route::middleware(['auth'])->group(function () {
         Route::post('users/{user}/toggle', [AdminController::class, 'toggleUser'])->name('admin.users.toggle');
         
         Route::get('statistics', [AdminController::class, 'statistics'])->name('admin.statistics');
+        
+        // Nettoyage des fichiers orphelins (admin seulement)
+        Route::post('cleanup/files', [DocumentController::class, 'cleanupOrphanedFiles'])->name('admin.cleanup.files');
     });
 });
 
-// Routes API pour les appels AJAX
+// Routes API pour les appels AJAX (sécurisées)
 Route::middleware(['auth'])->prefix('api')->group(function () {
     Route::get('chantiers/{chantier}/avancement', function (App\Models\Chantier $chantier) {
+        // Vérification des autorisations
+        if (!auth()->user()->can('view', $chantier)) {
+            abort(403, 'Accès non autorisé');
+        }
+        
         return response()->json([
             'avancement' => $chantier->avancement_global,
             'etapes' => $chantier->etapes->map(function ($etape) {
@@ -98,10 +106,78 @@ Route::middleware(['auth'])->prefix('api')->group(function () {
                 ];
             }),
         ]);
-    });
+    })->name('api.chantiers.avancement');
     
     Route::get('notifications/count', function () {
         $count = auth()->user()->getNotificationsNonLues();
         return response()->json(['count' => $count]);
-    });
+    })->name('api.notifications.count');
+    
+    // API pour les statistiques (admin seulement)
+    Route::middleware(['role:admin'])->get('admin/stats', function () {
+        return response()->json([
+            'total_users' => \App\Models\User::count(),
+            'total_chantiers' => \App\Models\Chantier::count(),
+            'chantiers_actifs' => \App\Models\Chantier::where('statut', 'en_cours')->count(),
+            'chantiers_termines' => \App\Models\Chantier::where('statut', 'termine')->count(),
+            'chantiers_en_retard' => \App\Models\Chantier::whereDate('date_fin_prevue', '<', now())
+                ->where('statut', '!=', 'termine')
+                ->count(),
+        ]);
+    })->name('api.admin.stats');
+    
+    // API pour la recherche de chantiers
+    Route::get('chantiers/search', function (Illuminate\Http\Request $request) {
+        $query = $request->get('q', '');
+        $user = auth()->user();
+        
+        $chantiersQuery = \App\Models\Chantier::query();
+        
+        // Filtrage selon le rôle
+        if ($user->isCommercial()) {
+            $chantiersQuery->where('commercial_id', $user->id);
+        } elseif ($user->isClient()) {
+            $chantiersQuery->where('client_id', $user->id);
+        }
+        
+        $chantiers = $chantiersQuery->where(function ($q) use ($query) {
+            $q->where('titre', 'like', "%{$query}%")
+                ->orWhere('description', 'like', "%{$query}%");
+        })
+            ->with(['client', 'commercial'])
+            ->limit(10)
+            ->get()
+            ->map(function ($chantier) {
+                return [
+                    'id' => $chantier->id,
+                    'titre' => $chantier->titre,
+                    'description' => $chantier->description,
+                    'client' => $chantier->client->name,
+                    'commercial' => $chantier->commercial->name,
+                    'statut' => $chantier->statut,
+                    'url' => route('chantiers.show', $chantier),
+                ];
+            });
+        
+        return response()->json($chantiers);
+    })->name('api.chantiers.search');
 });
+
+// Routes d'erreur personnalisées
+Route::fallback(function () {
+    if (request()->expectsJson()) {
+        return response()->json(['error' => 'Route non trouvée'], 404);
+    }
+    return response()->view('errors.404', [], 404);
+});
+
+// Routes de test (à supprimer en production)
+if (app()->environment('local')) {
+    Route::get('/test-email', function () {
+        $notification = \App\Models\Notification::first();
+        $user = \App\Models\User::first();
+        $chantier = \App\Models\Chantier::first();
+        
+        return view('emails.notification', compact('notification', 'user', 'chantier'));
+    });
+}
