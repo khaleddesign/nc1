@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" class="h-full">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -7,552 +7,279 @@
     
     <title>{{ config('app.name', 'Gestion Chantiers') }} - @yield('title', 'Dashboard')</title>
     
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Font Awesome -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- AOS Animation -->
-    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
     
-    <!-- Custom CSS -->
-    <style>
-        :root {
-            --primary-color: #4F46E5;
-            --secondary-color: #7C3AED;
-            --success-color: #10B981;
-            --danger-color: #EF4444;
-            --warning-color: #F59E0B;
-            --info-color: #3B82F6;
-            --dark-color: #111827;
-            --light-bg: #F9FAFB;
-            --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-            --hover-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        }
-
-        * {
-            font-family: 'Inter', sans-serif;
-        }
-
-        body {
-            background-color: var(--light-bg);
-            color: #374151;
-        }
-
-        /* Navbar moderne */
-        .navbar-modern {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-            backdrop-filter: blur(10px);
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            padding: 1rem 0;
-        }
-
-        .navbar-modern .navbar-brand {
-            font-weight: 700;
-            font-size: 1.5rem;
-            color: white !important;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .navbar-modern .nav-link {
-            color: rgba(255, 255, 255, 0.9) !important;
-            font-weight: 500;
-            padding: 0.5rem 1rem !important;
-            margin: 0 0.25rem;
-            border-radius: 0.5rem;
-            transition: all 0.3s ease;
-            position: relative;
-        }
-
-        .navbar-modern .nav-link:hover {
-            background-color: rgba(255, 255, 255, 0.1);
-            color: white !important;
-            transform: translateY(-1px);
-        }
-
-        .navbar-modern .nav-link.active {
-            background-color: rgba(255, 255, 255, 0.2);
-            color: white !important;
-        }
-
-        /* Cards modernes */
-        .card-modern {
-            background: white;
-            border-radius: 1rem;
-            border: none;
-            box-shadow: var(--card-shadow);
-            transition: all 0.3s ease;
-            overflow: hidden;
-        }
-
-        .card-modern:hover {
-            box-shadow: var(--hover-shadow);
-            transform: translateY(-2px);
-        }
-
-        .card-modern .card-header {
-            background: transparent;
-            border-bottom: 1px solid #E5E7EB;
-            padding: 1.5rem;
-        }
-
-        /* Statistiques cards */
-        .stat-card {
-            background: white;
-            border-radius: 1rem;
-            padding: 1.5rem;
-            border: none;
-            box-shadow: var(--card-shadow);
-            transition: all 0.3s ease;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            right: 0;
-            width: 100px;
-            height: 100px;
-            background: linear-gradient(135deg, transparent 0%, rgba(79, 70, 229, 0.1) 100%);
-            border-radius: 50%;
-            transform: translate(30px, -30px);
-        }
-
-        .stat-card:hover {
-            transform: translateY(-3px);
-            box-shadow: var(--hover-shadow);
-        }
-
-        .stat-icon {
-            width: 60px;
-            height: 60px;
-            border-radius: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            margin-bottom: 1rem;
-        }
-
-        /* Boutons modernes */
-        .btn-modern {
-            padding: 0.625rem 1.25rem;
-            font-weight: 500;
-            border-radius: 0.5rem;
-            border: none;
-            transition: all 0.3s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .btn-modern-primary {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-            color: white;
-        }
-
-        .btn-modern-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px -5px rgba(79, 70, 229, 0.35);
-            color: white;
-        }
-
-        /* Progress bars */
-        .progress-modern {
-            height: 8px;
-            background-color: #E5E7EB;
-            border-radius: 999px;
-            overflow: hidden;
-        }
-
-        .progress-modern .progress-bar {
-            background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-            border-radius: 999px;
-            transition: width 0.6s ease;
-        }
-
-        /* Badges */
-        .badge-modern {
-            padding: 0.375rem 0.75rem;
-            font-weight: 500;
-            font-size: 0.75rem;
-            border-radius: 0.375rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        /* Sidebar moderne */
-        .sidebar-modern {
-            background: white;
-            min-height: calc(100vh - 80px);
-            box-shadow: 2px 0 6px -1px rgba(0, 0, 0, 0.1);
-            padding: 2rem 1rem;
-        }
-
-        .sidebar-modern .nav-link {
-            color: #6B7280;
-            padding: 0.75rem 1rem;
-            border-radius: 0.5rem;
-            margin-bottom: 0.25rem;
-            transition: all 0.3s ease;
-            font-weight: 500;
-        }
-
-        .sidebar-modern .nav-link:hover {
-            background-color: #F3F4F6;
-            color: var(--primary-color);
-            transform: translateX(4px);
-        }
-
-        .sidebar-modern .nav-link.active {
-            background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
-            color: white;
-        }
-
-        /* Notifications */
-        .notification-badge {
-            position: absolute;
-            top: -8px;
-            right: -8px;
-            background: var(--danger-color);
-            color: white;
-            border-radius: 999px;
-            padding: 0.25rem 0.5rem;
-            font-size: 0.7rem;
-            font-weight: 600;
-            min-width: 20px;
-            text-align: center;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% {
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
-            }
-            70% {
-                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
-            }
-            100% {
-                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
-            }
-        }
-
-        /* Tables modernes */
-        .table-modern {
-            background: white;
-            border-radius: 0.75rem;
-            overflow: hidden;
-            box-shadow: var(--card-shadow);
-        }
-
-        .table-modern thead {
-            background-color: #F9FAFB;
-        }
-
-        .table-modern th {
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.75rem;
-            letter-spacing: 0.05em;
-            color: #6B7280;
-            padding: 1rem;
-            border: none;
-        }
-
-        .table-modern td {
-            padding: 1rem;
-            border-top: 1px solid #E5E7EB;
-            vertical-align: middle;
-        }
-
-        .table-modern tbody tr {
-            transition: all 0.3s ease;
-        }
-
-        .table-modern tbody tr:hover {
-            background-color: #F9FAFB;
-        }
-
-        /* Animations */
-        .fade-in {
-            animation: fadeIn 0.5s ease-in;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* Dropdown moderne */
-        .dropdown-menu {
-            border: none;
-            box-shadow: var(--hover-shadow);
-            border-radius: 0.75rem;
-            padding: 0.5rem;
-            margin-top: 0.5rem;
-        }
-
-        .dropdown-item {
-            border-radius: 0.5rem;
-            padding: 0.5rem 1rem;
-            transition: all 0.3s ease;
-            font-weight: 500;
-        }
-
-        .dropdown-item:hover {
-            background-color: var(--light-bg);
-            color: var(--primary-color);
-        }
-
-        /* Loading animation */
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: white;
-            animation: spin 1s ease-in-out infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .sidebar-modern {
-                display: none;
-            }
-            
-            .stat-card {
-                margin-bottom: 1rem;
-            }
-        }
-    </style>
+    <!-- Scripts -->
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    
+    <!-- AlpineJS pour l'interactivité -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
     @yield('styles')
 </head>
-<body>
-    <!-- Navbar -->
-    <nav class="navbar navbar-expand-lg navbar-modern">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="{{ route('dashboard') }}">
-                <i class="fas fa-hard-hat"></i>
-                {{ config('app.name', 'Gestion Chantiers') }}
-            </a>
+<body class="h-full bg-gray-50" x-data="{ sidebarOpen: false }">
+    <!-- Navigation mobile -->
+    <div x-show="sidebarOpen" class="fixed inset-0 z-40 lg:hidden">
+        <div x-show="sidebarOpen" 
+             x-transition:enter="transition-opacity ease-linear duration-300"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition-opacity ease-linear duration-300"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="fixed inset-0 bg-gray-600 bg-opacity-75"
+             @click="sidebarOpen = false"></div>
+        
+        <div x-show="sidebarOpen"
+             x-transition:enter="transition ease-in-out duration-300 transform"
+             x-transition:enter-start="-translate-x-full"
+             x-transition:enter-end="translate-x-0"
+             x-transition:leave="transition ease-in-out duration-300 transform"
+             x-transition:leave-start="translate-x-0"
+             x-transition:leave-end="-translate-x-full"
+             class="relative flex flex-col flex-1 w-full max-w-xs bg-white">
+            <div class="absolute top-0 right-0 pt-2 -mr-12">
+                <button @click="sidebarOpen = false" 
+                        class="flex items-center justify-center w-10 h-10 ml-1 rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white">
+                    <span class="sr-only">Fermer la sidebar</span>
+                    <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
             
-            <button class="navbar-toggler text-white" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <i class="fas fa-bars"></i>
+            <!-- Sidebar mobile content -->
+            <div class="flex-1 h-0 pt-5 pb-4 overflow-y-auto">
+                <div class="flex items-center flex-shrink-0 px-4">
+                    <h1 class="text-xl font-bold text-gray-900">
+                        <i class="fas fa-hard-hat mr-2 text-primary-600"></i>
+                        {{ config('app.name') }}
+                    </h1>
+                </div>
+                <nav class="mt-5 px-2 space-y-1">
+                    @auth
+                        @include('partials.navigation-items')
+                    @endauth
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar desktop -->
+    <div class="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0">
+        <div class="flex flex-col flex-grow pt-5 bg-white border-r border-gray-200 overflow-y-auto">
+            <div class="flex items-center flex-shrink-0 px-4">
+                <h1 class="text-xl font-bold text-gray-900">
+                    <i class="fas fa-hard-hat mr-2 text-primary-600"></i>
+                    {{ config('app.name') }}
+                </h1>
+            </div>
+            <div class="mt-5 flex-grow flex flex-col">
+                <nav class="flex-1 px-2 pb-4 space-y-1">
+                    @auth
+                        @include('partials.navigation-items')
+                    @endauth
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenu principal -->
+    <div class="lg:pl-64 flex flex-col flex-1">
+        <!-- Header -->
+        <div class="sticky top-0 z-10 flex-shrink-0 flex h-16 bg-white shadow">
+            <button @click="sidebarOpen = true" 
+                    class="px-4 border-r border-gray-200 text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-primary-500 lg:hidden">
+                <span class="sr-only">Ouvrir la sidebar</span>
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+                </svg>
             </button>
             
-            <div class="collapse navbar-collapse" id="navbarNav">
-                @auth
-                    <ul class="navbar-nav me-auto">
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}" 
-                               href="{{ route('dashboard') }}" data-aos="fade-down" data-aos-delay="100">
-                                <i class="fas fa-tachometer-alt me-1"></i>Dashboard
-                            </a>
-                        </li>
-                        
-                        <li class="nav-item">
-                            <a class="nav-link {{ request()->routeIs('chantiers.*') ? 'active' : '' }}" 
-                               href="{{ route('chantiers.index') }}" data-aos="fade-down" data-aos-delay="200">
-                                <i class="fas fa-building me-1"></i>Chantiers
-                            </a>
-                        </li>
-                        
-                        @if(Auth::user()->isAdmin() || Auth::user()->isCommercial())
-                            <li class="nav-item">
-                                <a class="nav-link {{ request()->routeIs('chantiers.calendrier') ? 'active' : '' }}" 
-                                   href="{{ route('chantiers.calendrier') }}" data-aos="fade-down" data-aos-delay="300">
-                                    <i class="fas fa-calendar me-1"></i>Calendrier
-                                </a>
-                            </li>
-                        @endif
-                        
-                        @if(Auth::user()->isAdmin())
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle {{ request()->routeIs('admin.*') ? 'active' : '' }}" 
-                                   href="#" role="button" data-bs-toggle="dropdown" data-aos="fade-down" data-aos-delay="400">
-                                    <i class="fas fa-cog me-1"></i>Administration
-                                </a>
-                                <ul class="dropdown-menu">
-                                    <li>
-                                        <a class="dropdown-item" href="{{ route('admin.users') }}">
-                                            <i class="fas fa-users me-2"></i>Utilisateurs
-                                        </a>
-                                    </li>
-                                    <li>
-                                        <a class="dropdown-item" href="{{ route('admin.statistics') }}">
-                                            <i class="fas fa-chart-bar me-2"></i>Statistiques
-                                        </a>
-                                    </li>
-                                </ul>
-                            </li>
-                        @endif
-                    </ul>
-                    
-                    <ul class="navbar-nav">
+            <div class="flex-1 px-4 flex justify-between">
+                <div class="flex-1 flex">
+                    <!-- Barre de recherche -->
+                    <div class="w-full flex md:ml-0" x-data="{ searchOpen: false }">
+                        <label for="search-field" class="sr-only">Rechercher</label>
+                        <div class="relative w-full text-gray-400 focus-within:text-gray-600">
+                            <div class="absolute inset-y-0 left-0 flex items-center pointer-events-none">
+                                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+                                </svg>
+                            </div>
+                            <input id="search-field" 
+                                   class="block w-full h-full pl-8 pr-3 py-2 border-transparent text-gray-900 placeholder-gray-500 focus:outline-none focus:placeholder-gray-400 focus:ring-0 focus:border-transparent" 
+                                   placeholder="Rechercher des chantiers..." 
+                                   type="search" 
+                                   name="search">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="ml-4 flex items-center md:ml-6">
+                    @auth
                         <!-- Notifications -->
-                        <li class="nav-item me-3">
-                            <a class="nav-link position-relative" href="{{ route('notifications.index') }}">
-                                <i class="fas fa-bell fa-lg"></i>
+                        <div class="relative" x-data="{ notificationOpen: false }">
+                            <button @click="notificationOpen = !notificationOpen" 
+                                    class="bg-white p-1 rounded-full text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                <span class="sr-only">Voir les notifications</span>
+                                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+                                </svg>
                                 @php
                                     $unreadCount = Auth::user()->getNotificationsNonLues();
                                 @endphp
                                 @if($unreadCount > 0)
-                                    <span class="notification-badge">{{ $unreadCount }}</span>
+                                    <span class="absolute top-0 right-0 block h-2 w-2 rounded-full bg-danger-400 ring-2 ring-white"></span>
                                 @endif
-                            </a>
-                        </li>
-                        
-                        <!-- Profil utilisateur -->
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" role="button" data-bs-toggle="dropdown">
-                                <div class="rounded-circle bg-white text-primary d-flex align-items-center justify-content-center" style="width: 35px; height: 35px;">
-                                    <i class="fas fa-user"></i>
+                            </button>
+                            
+                            <!-- Dropdown notifications -->
+                            <div x-show="notificationOpen" 
+                                 @click.away="notificationOpen = false"
+                                 x-transition:enter="transition ease-out duration-100"
+                                 x-transition:enter-start="transform opacity-0 scale-95"
+                                 x-transition:enter-end="transform opacity-100 scale-100"
+                                 x-transition:leave="transition ease-in duration-75"
+                                 x-transition:leave-start="transform opacity-100 scale-100"
+                                 x-transition:leave-end="transform opacity-0 scale-95"
+                                 class="origin-top-right absolute right-0 mt-2 w-80 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                                <div class="py-1">
+                                    <div class="px-4 py-2 text-sm text-gray-700 border-b border-gray-200">
+                                        <div class="font-medium">Notifications</div>
+                                    </div>
+                                    @if($unreadCount > 0)
+                                        <div class="max-h-96 overflow-y-auto">
+                                            @foreach(Auth::user()->notifications()->where('lu', false)->latest()->take(5)->get() as $notification)
+                                                <a href="{{ route('chantiers.show', $notification->chantier) }}" 
+                                                   class="block px-4 py-3 text-sm text-gray-700 hover:bg-gray-100 border-b border-gray-100">
+                                                    <div class="font-medium text-gray-900">{{ $notification->titre }}</div>
+                                                    <div class="text-gray-600 mt-1">{{ Str::limit($notification->message, 80) }}</div>
+                                                    <div class="text-xs text-gray-500 mt-1">{{ $notification->created_at->diffForHumans() }}</div>
+                                                </a>
+                                            @endforeach
+                                        </div>
+                                        <div class="px-4 py-2 border-t border-gray-200">
+                                            <a href="{{ route('notifications.index') }}" 
+                                               class="text-sm text-primary-600 hover:text-primary-500">
+                                                Voir toutes les notifications
+                                            </a>
+                                        </div>
+                                    @else
+                                        <div class="px-4 py-3 text-sm text-gray-500">
+                                            Aucune nouvelle notification
+                                        </div>
+                                    @endif
                                 </div>
-                                <div class="text-start">
-                                    <div class="fw-semibold">{{ Auth::user()->name }}</div>
-                                    <div class="small opacity-75">{{ ucfirst(Auth::user()->role) }}</div>
-                                </div>
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-end">
-                                <li>
-                                    <a class="dropdown-item" href="#">
-                                        <i class="fas fa-user me-2"></i>Mon Profil
+                            </div>
+                        </div>
+
+                        <!-- Menu utilisateur -->
+                        <div class="ml-3 relative" x-data="{ profileOpen: false }">
+                            <div>
+                                <button @click="profileOpen = !profileOpen" 
+                                        class="max-w-xs bg-white flex items-center text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                    <span class="sr-only">Ouvrir le menu utilisateur</span>
+                                    <div class="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center">
+                                        <span class="text-sm font-medium text-white">
+                                            {{ substr(Auth::user()->name, 0, 1) }}
+                                        </span>
+                                    </div>
+                                    <span class="ml-3 text-gray-700 text-sm font-medium lg:block">
+                                        <span class="sr-only">Ouvrir le menu utilisateur pour </span>
+                                        {{ Auth::user()->name }}
+                                    </span>
+                                    <svg class="ml-2 h-5 w-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                            </div>
+                            
+                            <div x-show="profileOpen" 
+                                 @click.away="profileOpen = false"
+                                 x-transition:enter="transition ease-out duration-100"
+                                 x-transition:enter-start="transform opacity-0 scale-95"
+                                 x-transition:enter-end="transform opacity-100 scale-100"
+                                 x-transition:leave="transition ease-in duration-75"
+                                 x-transition:leave-start="transform opacity-100 scale-100"
+                                 x-transition:leave-end="transform opacity-0 scale-95"
+                                 class="origin-top-right absolute right-0 mt-2 w-48 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                                <div class="py-1">
+                                    <div class="px-4 py-2 text-sm text-gray-700 border-b border-gray-200">
+                                        <div class="font-medium">{{ Auth::user()->name }}</div>
+                                        <div class="text-xs text-gray-500">{{ ucfirst(Auth::user()->role) }}</div>
+                                    </div>
+                                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        <i class="fas fa-user mr-2"></i>Mon Profil
                                     </a>
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="#">
-                                        <i class="fas fa-cog me-2"></i>Paramètres
+                                    <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                        <i class="fas fa-cog mr-2"></i>Paramètres
                                     </a>
-                                </li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
+                                    <div class="border-t border-gray-200"></div>
                                     <form method="POST" action="{{ route('logout') }}">
                                         @csrf
-                                        <button type="submit" class="dropdown-item">
-                                            <i class="fas fa-sign-out-alt me-2"></i>Déconnexion
+                                        <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
+                                            <i class="fas fa-sign-out-alt mr-2"></i>Déconnexion
                                         </button>
                                     </form>
-                                </li>
-                            </ul>
-                        </li>
-                    </ul>
-                @else
-                    <ul class="navbar-nav ms-auto">
-                        <li class="nav-item">
-                            <a class="nav-link" href="{{ route('login') }}">
-                                <i class="fas fa-sign-in-alt me-1"></i>Connexion
+                                </div>
+                            </div>
+                        </div>
+                    @else
+                        <div class="flex space-x-4">
+                            <a href="{{ route('login') }}" class="text-gray-500 hover:text-gray-700">
+                                Connexion
                             </a>
-                        </li>
-                        @if (Route::has('register'))
-                            <li class="nav-item">
-                                <a class="nav-link" href="{{ route('register') }}">
-                                    <i class="fas fa-user-plus me-1"></i>Inscription
+                            @if (Route::has('register'))
+                                <a href="{{ route('register') }}" class="text-gray-500 hover:text-gray-700">
+                                    Inscription
                                 </a>
-                            </li>
-                        @endif
-                    </ul>
-                @endauth
+                            @endif
+                        </div>
+                    @endauth
+                </div>
             </div>
         </div>
-    </nav>
 
-    <!-- Main content -->
-    <div class="container-fluid px-4 py-4">
-        @auth
-            @if(View::hasSection('sidebar'))
-                <div class="row">
-                    <!-- Sidebar -->
-                    <nav class="col-md-3 col-lg-2 sidebar-modern">
-                        @yield('sidebar')
-                    </nav>
-                    
-                    <!-- Content avec sidebar -->
-                    <main class="col-md-9 col-lg-10">
-                        @include('partials.alerts')
-                        @yield('content')
-                    </main>
+        <!-- Contenu de la page -->
+        <main class="flex-1">
+            @include('partials.alerts-tailwind')
+            @yield('content')
+        </main>
+
+        <!-- Footer -->
+        <footer class="bg-white border-t border-gray-200">
+            <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center">
+                    <div class="flex items-center">
+                        <i class="fas fa-hard-hat mr-2 text-primary-600"></i>
+                        <span class="text-gray-900 font-medium">{{ config('app.name') }}</span>
+                        <span class="ml-2 text-gray-500">© {{ date('Y') }}</span>
+                    </div>
+                    <div class="flex space-x-6 text-sm text-gray-500">
+                        <a href="#" class="hover:text-gray-700">Support</a>
+                        <a href="#" class="hover:text-gray-700">Mentions légales</a>
+                        <a href="#" class="hover:text-gray-700">Contact</a>
+                    </div>
                 </div>
-            @else
-                <!-- Content pleine largeur -->
-                <main>
-                    @include('partials.alerts')
-                    @yield('content')
-                </main>
-            @endif
-        @else
-            <main>
-                @yield('content')
-            </main>
-        @endauth
+            </div>
+        </footer>
     </div>
 
-    <!-- Footer moderne -->
-    <footer class="mt-5 py-4 bg-dark text-white">
-        <div class="container">
-            <div class="row">
-                <div class="col-md-6">
-                    <h5><i class="fas fa-hard-hat me-2"></i>{{ config('app.name') }}</h5>
-                    <p class="mb-0 opacity-75">Gestion professionnelle de vos chantiers</p>
-                </div>
-                <div class="col-md-6 text-md-end">
-                    <p class="mb-0 opacity-75">
-                        © {{ date('Y') }} Tous droits réservés | 
-                        <a href="#" class="text-white">Mentions légales</a> | 
-                        <a href="#" class="text-white">Support</a>
-                    </p>
-                </div>
-            </div>
-        </div>
-    </footer>
-
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <!-- Font Awesome -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     
+    <!-- Scripts -->
     <script>
-        // Initialisation AOS
-        AOS.init({
-            duration: 800,
-            once: true
-        });
-        
         // Auto-refresh des notifications
         @auth
         setInterval(function() {
             fetch('/api/notifications/count')
                 .then(response => response.json())
                 .then(data => {
-                    const badge = document.querySelector('.notification-badge');
-                    if (data.count > 0) {
-                        if (badge) {
-                            badge.textContent = data.count;
-                        } else {
-                            const bellIcon = document.querySelector('.fa-bell').parentElement;
-                            const newBadge = document.createElement('span');
-                            newBadge.className = 'notification-badge';
-                            newBadge.textContent = data.count;
-                            bellIcon.appendChild(newBadge);
-                        }
-                    } else if (badge) {
-                        badge.remove();
-                    }
+                    // Mise à jour du badge de notification
+                    // Cette logique peut être étendue selon vos besoins
                 });
         }, 30000);
         @endauth
