@@ -1,5 +1,5 @@
 <?php
-// app/Http/Middleware/CheckRole.php
+
 namespace App\Http\Middleware;
 
 use Closure;
@@ -8,6 +8,9 @@ use Illuminate\Support\Facades\Auth;
 
 class CheckRole
 {
+    /**
+     * Handle an incoming request.
+     */
     public function handle(Request $request, Closure $next, ...$roles)
     {
         if (!Auth::check()) {
@@ -17,7 +20,7 @@ class CheckRole
         $user = Auth::user();
         
         if (!in_array($user->role, $roles)) {
-            abort(403, 'Accès non autorisé.');
+            abort(403, 'Accès non autorisé pour votre rôle.');
         }
 
         return $next($request);

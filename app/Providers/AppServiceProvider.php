@@ -5,10 +5,10 @@ namespace App\Providers;
 use Illuminate\Support\ServiceProvider;
 use App\Helpers\TailwindHelper;
 
-class HelperServiceProvider extends ServiceProvider
+class AppServiceProvider extends ServiceProvider
 {
     /**
-     * Register services.
+     * Register any application services.
      */
     public function register(): void
     {
@@ -19,10 +19,10 @@ class HelperServiceProvider extends ServiceProvider
     }
 
     /**
-     * Bootstrap services.
+     * Bootstrap any application services.
      */
     public function boot(): void
     {
-        // Vous pouvez ajouter des configurations supplémentaires ici si nécessaire
+        // Configuration supplémentaire si nécessaire
     }
 }

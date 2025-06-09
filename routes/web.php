@@ -1,14 +1,16 @@
 <?php
-// routes/web.php
+
+use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\AdminController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ChantierController;
 use App\Http\Controllers\EtapeController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\CommentaireController;
 use App\Http\Controllers\NotificationController;
-use App\Http\Controllers\AdminController;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\Auth;
+use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\RegisterController;
 
 /*
 |--------------------------------------------------------------------------
@@ -16,22 +18,41 @@ use Illuminate\Support\Facades\Auth;
 |--------------------------------------------------------------------------
 */
 
-// Page d'accueil - Redirect vers dashboard
+// Page d'accueil - Redirect vers dashboard ou login
 Route::get('/', function () {
     return Auth::check() ? redirect()->route('dashboard') : redirect()->route('login');
 });
 
-// Routes d'authentification Laravel UI
-Auth::routes();
+// Routes d'authentification manuelles (Laravel UI style)
+Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login')->middleware('guest');
+Route::post('/login', [LoginController::class, 'login'])->middleware('guest');
+Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
+
+// Routes d'inscription (optionnelles)
+Route::get('/register', [RegisterController::class, 'showRegistrationForm'])->name('register')->middleware('guest');
+Route::post('/register', [RegisterController::class, 'register'])->middleware('guest');
+
+// Routes de réinitialisation de mot de passe (optionnelles)
+Route::get('/password/reset', function () {
+    return view('auth.passwords.email');
+})->name('password.request')->middleware('guest');
+
+Route::post('/password/email', function (Illuminate\Http\Request $request) {
+    $request->validate(['email' => 'required|email']);
+    
+    // Ici vous pouvez implémenter la logique d'envoi d'email
+    // Pour l'instant, on retourne juste un message
+    return back()->with('status', 'Si cette adresse email existe, vous recevrez un lien de réinitialisation.');
+})->name('password.email')->middleware('guest');
 
 // Routes protégées par l'authentification
 Route::middleware(['auth'])->group(function () {
     
-    // Dashboard principal
+    // Dashboard principal (route vers le bon dashboard selon le rôle)
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/home', [DashboardController::class, 'index'])->name('home');
+    Route::get('/home', [DashboardController::class, 'index'])->name('home'); // Fallback pour Laravel UI
     
-    // Gestion des chantiers
+    // Gestion des chantiers (accessible selon les permissions)
     Route::resource('chantiers', ChantierController::class);
     Route::get('chantiers/{chantier}/etapes', [ChantierController::class, 'etapes'])->name('chantiers.etapes');
     Route::get('chantiers/{chantier}/export', [ChantierController::class, 'export'])->name('chantiers.export');
@@ -68,23 +89,23 @@ Route::middleware(['auth'])->group(function () {
         Route::post('{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
         Route::post('mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
     });
+});
+
+// Routes admin uniquement
+Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
+    Route::get('/', [AdminController::class, 'index'])->name('admin.index');
+    Route::get('dashboard', [AdminController::class, 'index'])->name('admin.dashboard'); // Alias
+    Route::get('users', [AdminController::class, 'users'])->name('admin.users');
+    Route::get('users/create', [AdminController::class, 'createUser'])->name('admin.users.create');
+    Route::post('users', [AdminController::class, 'storeUser'])->name('admin.users.store');
+    Route::get('users/{user}/edit', [AdminController::class, 'editUser'])->name('admin.users.edit');
+    Route::put('users/{user}', [AdminController::class, 'updateUser'])->name('admin.users.update');
+    Route::delete('users/{user}', [AdminController::class, 'destroyUser'])->name('admin.users.destroy');
+    Route::patch('users/{user}/toggle', [AdminController::class, 'toggleUser'])->name('admin.users.toggle');
+    Route::get('statistics', [AdminController::class, 'statistics'])->name('admin.statistics');
     
-    // Routes admin uniquement
-    Route::middleware(['role:admin'])->prefix('admin')->group(function () {
-        Route::get('/', [AdminController::class, 'index'])->name('admin.index');
-        Route::get('users', [AdminController::class, 'users'])->name('admin.users');
-        Route::get('users/create', [AdminController::class, 'createUser'])->name('admin.users.create');
-        Route::post('users', [AdminController::class, 'storeUser'])->name('admin.users.store');
-        Route::get('users/{user}/edit', [AdminController::class, 'editUser'])->name('admin.users.edit');
-        Route::put('users/{user}', [AdminController::class, 'updateUser'])->name('admin.users.update');
-        Route::delete('users/{user}', [AdminController::class, 'destroyUser'])->name('admin.users.destroy');
-        Route::post('users/{user}/toggle', [AdminController::class, 'toggleUser'])->name('admin.users.toggle');
-        
-        Route::get('statistics', [AdminController::class, 'statistics'])->name('admin.statistics');
-        
-        // Nettoyage des fichiers orphelins (admin seulement)
-        Route::post('cleanup/files', [DocumentController::class, 'cleanupOrphanedFiles'])->name('admin.cleanup.files');
-    });
+    // Nettoyage des fichiers orphelins (admin seulement)
+    Route::post('cleanup/files', [DocumentController::class, 'cleanupOrphanedFiles'])->name('admin.cleanup.files');
 });
 
 // Routes API pour les appels AJAX (sécurisées)
@@ -174,10 +195,34 @@ Route::fallback(function () {
 // Routes de test (à supprimer en production)
 if (app()->environment('local')) {
     Route::get('/test-email', function () {
-        $notification = \App\Models\Notification::first();
-        $user = \App\Models\User::first();
-        $chantier = \App\Models\Chantier::first();
-        
-        return view('emails.notification', compact('notification', 'user', 'chantier'));
+        return view('emails.notification', [
+            'notification' => \App\Models\Notification::first() ?? new \App\Models\Notification(),
+            'user' => \App\Models\User::first() ?? new \App\Models\User(),
+            'chantier' => \App\Models\Chantier::first() ?? new \App\Models\Chantier(),
+        ]);
     });
-}
+}// Routes admin uniquement - Version complète
+Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
+    Route::get('/', [AdminController::class, 'index'])->name('admin.index');
+    Route::get('dashboard', [AdminController::class, 'index'])->name('admin.dashboard'); // Alias
+    
+    // Gestion des utilisateurs
+    Route::get('users', [AdminController::class, 'users'])->name('admin.users');
+    Route::get('users/create', [AdminController::class, 'createUser'])->name('admin.users.create');
+    Route::post('users', [AdminController::class, 'storeUser'])->name('admin.users.store');
+    Route::get('users/{user}', [AdminController::class, 'showUser'])->name('admin.users.show'); // NOUVEAU
+    Route::get('users/{user}/edit', [AdminController::class, 'editUser'])->name('admin.users.edit');
+    Route::put('users/{user}', [AdminController::class, 'updateUser'])->name('admin.users.update');
+    Route::delete('users/{user}', [AdminController::class, 'destroyUser'])->name('admin.users.destroy');
+    Route::patch('users/{user}/toggle', [AdminController::class, 'toggleUser'])->name('admin.users.toggle');
+    
+    // Actions en lot et export - NOUVEAUX
+    Route::post('users/bulk-action', [AdminController::class, 'bulkAction'])->name('admin.users.bulk-action');
+    Route::get('users/export', [AdminController::class, 'exportUsers'])->name('admin.users.export');
+    
+    // Statistiques
+    Route::get('statistics', [AdminController::class, 'statistics'])->name('admin.statistics');
+    
+    // Nettoyage des fichiers orphelins (admin seulement)
+    Route::post('cleanup/files', [DocumentController::class, 'cleanupOrphanedFiles'])->name('admin.cleanup.files');
+});

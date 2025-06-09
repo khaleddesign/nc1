@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use App\Models\User;
 use App\Models\Chantier;
 use App\Models\Etape;
@@ -19,15 +20,16 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Vider les tables en respectant les contraintes
-        \DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        // Pour SQLite, pas besoin de désactiver les foreign keys
+        // SQLite gère automatiquement les contraintes
+
+        // Vider les tables en respectant l'ordre des dépendances
         Notification::truncate();
         Commentaire::truncate();
         Document::truncate();
         Etape::truncate();
         Chantier::truncate();
         User::truncate();
-        \DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         // Créer un admin par défaut
         $admin = User::create([
@@ -287,7 +289,7 @@ class DatabaseSeeder extends Seeder
             Commentaire::create($commentaireData);
         }
 
-        // Créer des notifications
+        // Créer des notifications (avec chantier_id nullable pour les notifications système)
         $notifications = [
             [
                 'user_id' => $clients[0]->id,
@@ -359,6 +361,10 @@ class DatabaseSeeder extends Seeder
             ],
         ];
 
+        foreach ($documents as $documentData) {
+            Document::create($documentData);
+        }
+
         // Calculer l'avancement de tous les chantiers
         $chantiers = Chantier::all();
         foreach ($chantiers as $chantier) {
@@ -370,6 +376,6 @@ class DatabaseSeeder extends Seeder
         $this->command->info('Comptes de test :');
         $this->command->info('Admin : admin@chantiers.com / password');
         $this->command->info('Commercial : jean.dupont@chantiers.com / password');
-        $this->command->info('Client : pierre.durand@email.com / password');
+        $this->command->info('Client : pierre.bernard@email.com / password');
     }
 }

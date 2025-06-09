@@ -21,10 +21,9 @@ class User extends Authenticatable
     protected $casts = [
         'email_verified_at' => 'datetime',
         'active'            => 'boolean',
-        'password' => 'hashed', // Ajout pour Laravel 11+
+        'password' => 'hashed',
     ];
 
-    // Ajout des attributs par défaut
     protected $attributes = [
         'role' => 'client',
         'active' => true,
@@ -72,24 +71,27 @@ class User extends Authenticatable
         return $this->role === 'client';
     }
 
+    // AJOUT DE LA MÉTHODE MANQUANTE
+    public function hasRole($role)
+    {
+        return $this->role === $role;
+    }
+
     public function getNotificationsNonLues()
     {
         return $this->notifications()->where('lu', false)->count();
     }
 
-    // Accesseur pour le nom complet avec rôle
     public function getFullNameWithRoleAttribute()
     {
         return $this->name . ' (' . ucfirst($this->role) . ')';
     }
 
-    // Scope pour filtrer par rôle
     public function scopeByRole($query, $role)
     {
         return $query->where('role', $role);
     }
 
-    // Scope pour les utilisateurs actifs
     public function scopeActive($query)
     {
         return $query->where('active', true);

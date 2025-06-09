@@ -18,7 +18,7 @@
         "vite": "^4.0.0"
     },
     "dependencies": {
-        "@headlessui/js": "^1.0.0",
+       
         "@heroicons/react": "^2.0.18",
         "alpinejs": "^3.13.3"
     }

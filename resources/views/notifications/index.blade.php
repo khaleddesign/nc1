@@ -3,27 +3,25 @@
 @section('title', 'Mes Notifications')
 
 @section('content')
-<div class="container-fluid mt-4">
-    <div class="row">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center mb-4">
-                <h1><i class="fas fa-bell me-2"></i>Mes Notifications</h1>
-                @if($notifications->where('lu', false)->count() > 0)
-                    <form method="POST" action="{{ route('notifications.mark-all-read') }}">
-                        @csrf
-                        <button type="submit" class="btn btn-outline-primary">
-                            <i class="fas fa-check-double me-2"></i>Tout marquer comme lu
-                        </button>
-                    </form>
-                @endif
-            </div>
-        </div>
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0">
+            <i class="fas fa-bell mr-3 text-primary-600"></i>Mes Notifications
+        </h1>
+        @if($notifications->where('lu', false)->count() > 0)
+            <form method="POST" action="{{ route('notifications.mark-all-read') }}">
+                @csrf
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="fas fa-check-double mr-2"></i>Tout marquer comme lu
+                </button>
+            </form>
+        @endif
     </div>
     
     <!-- Filtres -->
-    <div class="card mb-4">
+    <div class="card mb-6">
         <div class="card-body">
-            <div class="btn-group" role="group">
+            <div class="flex flex-wrap gap-2">
                 <a href="{{ route('notifications.index') }}" 
                    class="btn {{ !request('filter') ? 'btn-primary' : 'btn-outline-primary' }}">
                     Toutes
@@ -42,76 +40,87 @@
     
     <!-- Liste des notifications -->
     @if($notifications->count() > 0)
-        <div class="row">
+        <div class="space-y-4">
             @foreach($notifications as $notification)
-                <div class="col-12 mb-3">
-                    <div class="card {{ !$notification->lu ? 'border-primary' : '' }}">
-                        <div class="card-body">
-                            <div class="row align-items-center">
-                                <div class="col-auto">
-                                    <div class="rounded-circle bg-{{ $notification->lu ? 'secondary' : 'primary' }} text-white d-flex align-items-center justify-content-center" 
-                                         style="width: 50px; height: 50px;">
-                                        <i class="{{ getNotificationIcon($notification->type) }} fa-lg"></i>
-                                    </div>
+                <div class="card {{ !$notification->lu ? 'border-primary-400 bg-primary-50' : 'border-gray-200' }} hover:shadow-md transition-shadow">
+                    <div class="card-body">
+                        <div class="flex items-center space-x-4">
+                            <!-- Icône de notification -->
+                            <div class="flex-shrink-0">
+                                <div class="w-12 h-12 rounded-full {{ !$notification->lu ? 'bg-primary-500' : 'bg-gray-400' }} text-white flex items-center justify-center">
+                                    <i class="{{ getNotificationIcon($notification->type) }} text-lg"></i>
                                 </div>
-                                <div class="col">
-                                    <h5 class="mb-1">
-                                        {{ $notification->titre }}
+                            </div>
+                            
+                            <!-- Contenu principal -->
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-start justify-between">
+                                    <div class="flex-1">
+                                        <h5 class="text-lg font-semibold text-gray-900 mb-1 flex items-center">
+                                            {{ $notification->titre }}
+                                            @if(!$notification->lu)
+                                                <span class="badge badge-primary ml-2">Nouveau</span>
+                                            @endif
+                                        </h5>
+                                        <p class="text-gray-700 mb-2">{{ $notification->message }}</p>
+                                        <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500">
+                                            <span class="flex items-center">
+                                                <i class="fas fa-clock mr-1"></i>{{ $notification->created_at->diffForHumans() }}
+                                            </span>
+                                            @if($notification->chantier)
+                                                <span class="flex items-center">
+                                                    <i class="fas fa-building mr-1"></i>
+                                                    <a href="{{ route('chantiers.show', $notification->chantier) }}" 
+                                                       class="text-primary-600 hover:text-primary-800 font-medium">
+                                                        {{ $notification->chantier->titre }}
+                                                    </a>
+                                                </span>
+                                            @endif
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Actions -->
+                                    <div class="flex items-center space-x-2 ml-4">
                                         @if(!$notification->lu)
-                                            <span class="badge bg-primary ms-2">Nouveau</span>
+                                            <form method="POST" action="{{ route('notifications.read', $notification) }}" class="inline">
+                                                @csrf
+                                                <button type="submit" class="btn btn-outline-primary btn-sm" title="Marquer comme lu">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                            </form>
                                         @endif
-                                    </h5>
-                                    <p class="mb-1">{{ $notification->message }}</p>
-                                    <small class="text-muted">
-                                        <i class="fas fa-clock me-1"></i>{{ $notification->created_at->diffForHumans() }}
                                         @if($notification->chantier)
-                                            | <i class="fas fa-building me-1"></i>
-                                            <a href="{{ route('chantiers.show', $notification->chantier) }}">
-                                                {{ $notification->chantier->titre }}
+                                            <a href="{{ route('chantiers.show', $notification->chantier) }}" 
+                                               class="btn btn-primary btn-sm">
+                                                <i class="fas fa-eye mr-1"></i>Voir
                                             </a>
                                         @endif
-                                    </small>
-                                </div>
-                                <div class="col-auto">
-                                    @if(!$notification->lu)
-                                        <form method="POST" action="{{ route('notifications.read', $notification) }}" class="d-inline">
-                                            @csrf
-                                            <button type="submit" class="btn btn-sm btn-outline-primary" title="Marquer comme lu">
-                                                <i class="fas fa-check"></i>
-                                            </button>
-                                        </form>
-                                    @endif
-                                    @if($notification->chantier)
-                                        <a href="{{ route('chantiers.show', $notification->chantier) }}" 
-                                           class="btn btn-sm btn-primary">
-                                            <i class="fas fa-eye me-1"></i>Voir
-                                        </a>
-                                    @endif
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        @if($notification->lu && $notification->lu_at)
-                            <div class="card-footer bg-light">
-                                <small class="text-muted">
-                                    Lu le {{ $notification->lu_at->format('d/m/Y à H:i') }}
-                                </small>
-                            </div>
-                        @endif
                     </div>
+                    @if($notification->lu && $notification->lu_at)
+                        <div class="card-footer bg-gray-50">
+                            <small class="text-gray-500">
+                                Lu le {{ $notification->lu_at->format('d/m/Y à H:i') }}
+                            </small>
+                        </div>
+                    @endif
                 </div>
             @endforeach
         </div>
         
         <!-- Pagination -->
-        <div class="d-flex justify-content-center">
+        <div class="flex justify-center mt-8">
             {{ $notifications->links() }}
         </div>
     @else
         <div class="card">
-            <div class="card-body text-center py-5">
-                <i class="fas fa-bell-slash fa-4x text-muted mb-3"></i>
-                <h4>Aucune notification</h4>
-                <p class="text-muted">
+            <div class="card-body text-center py-12">
+                <i class="fas fa-bell-slash text-6xl text-gray-400 mb-6"></i>
+                <h4 class="text-xl font-semibold text-gray-900 mb-2">Aucune notification</h4>
+                <p class="text-gray-500">
                     @if(request('filter') == 'unread')
                         Vous avez lu toutes vos notifications !
                     @else
