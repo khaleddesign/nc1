@@ -1,0 +1,24 @@
+{
+    "css.validate": false,
+    "scss.validate": false,
+    "less.validate": false,
+    "postcss.validate": false,
+    "tailwindCSS.includeLanguages": {
+      "html": "html",
+      "javascript": "javascript",
+      "css": "css",
+      "scss": "scss",
+      "blade": "html"
+    },
+    "tailwindCSS.experimental.classRegex": [
+      "class[:]?\\s*[\"']([^\"']*)[\"']",
+      "className[:]?\\s*[\"']([^\"']*)[\"']",
+      "@apply\\s+([^;\\n]*)"
+    ],
+    "files.associations": {
+      "*.blade.php": "blade"
+    },
+    "emmet.includeLanguages": {
+      "blade": "html"
+    }
+  }

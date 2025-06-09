@@ -3,22 +3,26 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use App\Helpers\TailwindHelper;
 
-class AppServiceProvider extends ServiceProvider
+class HelperServiceProvider extends ServiceProvider
 {
     /**
-     * Register any application services.
+     * Register services.
      */
     public function register(): void
     {
-        //
+        // Enregistrer le helper Tailwind comme singleton
+        $this->app->singleton('tailwind', function () {
+            return new TailwindHelper();
+        });
     }
 
     /**
-     * Bootstrap any application services.
+     * Bootstrap services.
      */
     public function boot(): void
     {
-        //
+        // Vous pouvez ajouter des configurations supplémentaires ici si nécessaire
     }
 }

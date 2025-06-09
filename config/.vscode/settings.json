@@ -1,0 +1,8 @@
+{
+    "css.customData": [".vscode/css_custom_data.json"],
+    "tailwindCSS.rootFontSize": 16,
+    "tailwindCSS.includeLanguages": {
+      "blade": "html"
+    }
+  }
+  

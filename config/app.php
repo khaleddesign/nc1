@@ -122,5 +122,10 @@ return [
         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
+'aliases' => [
+    // ... autres aliases
+    'Tailwind' => App\Facades\Tailwind::class,
+'Route' => Illuminate\Support\Facades\Route::class,
 
+],
 ];

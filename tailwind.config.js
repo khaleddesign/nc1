@@ -1,11 +1,10 @@
 /** @type {import('tailwindcss').Config} */
-export default {
+module.exports = {
   content: [
-    "./resources/**/*.blade.php",
-    "./resources/**/*.js",
-    "./resources/**/*.vue",
-    "./storage/framework/views/*.php",
-    "./app/View/Components/**/*.php"
+    './resources/**/*.blade.php',
+    './resources/**/*.js',
+    './resources/**/*.vue',
+    './app/**/*.php', // Pour les classes dans les modèles
   ],
   theme: {
     extend: {
@@ -22,18 +21,6 @@ export default {
           800: '#1e40af',
           900: '#1e3a8a',
         },
-        secondary: {
-          50: '#faf5ff',
-          100: '#f3e8ff',
-          200: '#e9d5ff',
-          300: '#d8b4fe',
-          400: '#c084fc',
-          500: '#a855f7',
-          600: '#9333ea',
-          700: '#7c3aed',
-          800: '#6b21a8',
-          900: '#581c87',
-        },
         success: {
           50: '#f0fdf4',
           100: '#dcfce7',
@@ -45,18 +32,6 @@ export default {
           700: '#15803d',
           800: '#166534',
           900: '#14532d',
-        },
-        danger: {
-          50: '#fef2f2',
-          100: '#fee2e2',
-          200: '#fecaca',
-          300: '#fca5a5',
-          400: '#f87171',
-          500: '#ef4444',
-          600: '#dc2626',
-          700: '#b91c1c',
-          800: '#991b1b',
-          900: '#7f1d1d',
         },
         warning: {
           50: '#fffbeb',
@@ -70,45 +45,69 @@ export default {
           800: '#92400e',
           900: '#78350f',
         },
-        info: {
-          50: '#f0f9ff',
-          100: '#e0f2fe',
-          200: '#bae6fd',
-          300: '#7dd3fc',
-          400: '#38bdf8',
-          500: '#0ea5e9',
-          600: '#0284c7',
-          700: '#0369a1',
-          800: '#075985',
-          900: '#0c4a6e',
-        }
+        danger: {
+          50: '#fef2f2',
+          100: '#fee2e2',
+          200: '#fecaca',
+          300: '#fca5a5',
+          400: '#f87171',
+          500: '#ef4444',
+          600: '#dc2626',
+          700: '#b91c1c',
+          800: '#991b1b',
+          900: '#7f1d1d',
+        },
       },
       fontFamily: {
-        sans: ['Inter', 'ui-sans-serif', 'system-ui'],
+        sans: ['Inter', 'system-ui', 'sans-serif'],
       },
       spacing: {
         '18': '4.5rem',
         '88': '22rem',
       },
+      maxWidth: {
+        '8xl': '88rem',
+      },
       animation: {
-        'fade-in': 'fadeIn 0.5s ease-in',
-        'slide-in': 'slideIn 0.3s ease-out',
+        'fade-in': 'fadeIn 0.5s ease-in-out',
+        'slide-up': 'slideUp 0.3s ease-out',
         'pulse-slow': 'pulse 3s infinite',
       },
       keyframes: {
         fadeIn: {
-          '0%': { opacity: '0', transform: 'translateY(10px)' },
-          '100%': { opacity: '1', transform: 'translateY(0)' }
+          '0%': { opacity: '0' },
+          '100%': { opacity: '1' },
         },
-        slideIn: {
-          '0%': { transform: 'translateX(-100%)' },
-          '100%': { transform: 'translateX(0)' }
-        }
-      }
+        slideUp: {
+          '0%': { transform: 'translateY(10px)', opacity: '0' },
+          '100%': { transform: 'translateY(0)', opacity: '1' },
+        },
+      },
     },
   },
   plugins: [
-    require('@tailwindcss/forms'),
+    require('@tailwindcss/forms')({
+      strategy: 'class', // Utilise la stratégie de classe pour éviter les conflits
+    }),
     require('@tailwindcss/typography'),
+    require('@tailwindcss/aspect-ratio'),
+  ],
+  safelist: [
+    // Classes générées dynamiquement dans PHP qu'il faut préserver
+    'bg-gray-100',
+    'bg-blue-100',
+    'bg-green-100',
+    'bg-red-100',
+    'bg-yellow-100',
+    'text-gray-800',
+    'text-blue-800',
+    'text-green-800',
+    'text-red-800',
+    'text-yellow-800',
+    'bg-gray-400',
+    'bg-blue-500',
+    'bg-green-500',
+    'text-red-600',
+    // Ajouter d'autres classes utilisées dynamiquement
   ],
 }
