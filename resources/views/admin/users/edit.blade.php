@@ -448,6 +448,7 @@ document.getElementById('editUserForm').addEventListener('submit', function(e) {
         confirmField.scrollIntoView({ behavior: 'smooth', block: 'center' });
 </script>
 @endsection
+<script>
         confirmField.focus();
         
         return false;
@@ -540,3 +541,4 @@ document.addEventListener('DOMContentLoaded', function() {
         }, index * 100);
     });
 });
+</script>
