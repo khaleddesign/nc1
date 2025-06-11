@@ -52,12 +52,16 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('/home', [DashboardController::class, 'index'])->name('home'); // Fallback pour Laravel UI
     
-    // Gestion des chantiers (accessible selon les permissions)
-    Route::resource('chantiers', ChantierController::class);
-    Route::get('chantiers/{chantier}/etapes', [ChantierController::class, 'etapes'])->name('chantiers.etapes');
-    Route::get('chantiers/{chantier}/export', [ChantierController::class, 'export'])->name('chantiers.export');
+    // ✅ ROUTES SPÉCIFIQUES AVANT LE RESOURCE (ordre CRITIQUE !)
+    Route::get('chantiers/export', [ChantierController::class, 'export'])->name('chantiers.export');
     Route::get('chantiers/calendrier/view', [ChantierController::class, 'calendrier'])->name('chantiers.calendrier');
     Route::get('chantiers/search', [ChantierController::class, 'search'])->name('chantiers.search');
+    
+    // ✅ RESOURCE ROUTE APRÈS (pour éviter les conflits)
+    Route::resource('chantiers', ChantierController::class);
+    
+    // Routes spécifiques avec paramètres (après le resource)
+    Route::get('chantiers/{chantier}/etapes', [ChantierController::class, 'etapes'])->name('chantiers.etapes');
     
     // Gestion des étapes (nested routes)
     Route::prefix('chantiers/{chantier}')->group(function () {
@@ -95,13 +99,22 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     Route::get('/', [AdminController::class, 'index'])->name('admin.index');
     Route::get('dashboard', [AdminController::class, 'index'])->name('admin.dashboard'); // Alias
+    
+    // Gestion des utilisateurs
     Route::get('users', [AdminController::class, 'users'])->name('admin.users');
     Route::get('users/create', [AdminController::class, 'createUser'])->name('admin.users.create');
     Route::post('users', [AdminController::class, 'storeUser'])->name('admin.users.store');
+    Route::get('users/{user}', [AdminController::class, 'showUser'])->name('admin.users.show');
     Route::get('users/{user}/edit', [AdminController::class, 'editUser'])->name('admin.users.edit');
     Route::put('users/{user}', [AdminController::class, 'updateUser'])->name('admin.users.update');
     Route::delete('users/{user}', [AdminController::class, 'destroyUser'])->name('admin.users.destroy');
     Route::patch('users/{user}/toggle', [AdminController::class, 'toggleUser'])->name('admin.users.toggle');
+    
+    // Actions en lot et export
+    Route::post('users/bulk-action', [AdminController::class, 'bulkAction'])->name('admin.users.bulk-action');
+    Route::get('users/export', [AdminController::class, 'exportUsers'])->name('admin.users.export');
+    
+    // Statistiques
     Route::get('statistics', [AdminController::class, 'statistics'])->name('admin.statistics');
     
     // Nettoyage des fichiers orphelins (admin seulement)
@@ -201,28 +214,4 @@ if (app()->environment('local')) {
             'chantier' => \App\Models\Chantier::first() ?? new \App\Models\Chantier(),
         ]);
     });
-}// Routes admin uniquement - Version complète
-Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
-    Route::get('/', [AdminController::class, 'index'])->name('admin.index');
-    Route::get('dashboard', [AdminController::class, 'index'])->name('admin.dashboard'); // Alias
-    
-    // Gestion des utilisateurs
-    Route::get('users', [AdminController::class, 'users'])->name('admin.users');
-    Route::get('users/create', [AdminController::class, 'createUser'])->name('admin.users.create');
-    Route::post('users', [AdminController::class, 'storeUser'])->name('admin.users.store');
-    Route::get('users/{user}', [AdminController::class, 'showUser'])->name('admin.users.show'); // NOUVEAU
-    Route::get('users/{user}/edit', [AdminController::class, 'editUser'])->name('admin.users.edit');
-    Route::put('users/{user}', [AdminController::class, 'updateUser'])->name('admin.users.update');
-    Route::delete('users/{user}', [AdminController::class, 'destroyUser'])->name('admin.users.destroy');
-    Route::patch('users/{user}/toggle', [AdminController::class, 'toggleUser'])->name('admin.users.toggle');
-    
-    // Actions en lot et export - NOUVEAUX
-    Route::post('users/bulk-action', [AdminController::class, 'bulkAction'])->name('admin.users.bulk-action');
-    Route::get('users/export', [AdminController::class, 'exportUsers'])->name('admin.users.export');
-    
-    // Statistiques
-    Route::get('statistics', [AdminController::class, 'statistics'])->name('admin.statistics');
-    
-    // Nettoyage des fichiers orphelins (admin seulement)
-    Route::post('cleanup/files', [DocumentController::class, 'cleanupOrphanedFiles'])->name('admin.cleanup.files');
-});
+}

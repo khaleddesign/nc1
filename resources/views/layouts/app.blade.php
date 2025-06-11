@@ -15,7 +15,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('styles')
 </head>
-<body class="bg-gray-50 antialiased">
+<body class="bg-gray-50 antialiased" x-data="{ mobileMenuOpen: false }">
     <div id="app">
         <!-- Navigation -->
         @auth
