@@ -93,6 +93,88 @@ Route::middleware(['auth'])->group(function () {
         Route::post('{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
         Route::post('mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
     });
+
+    // ================================
+    // NOUVELLES ROUTES POUR LE DASHBOARD AMÉLIORÉ
+    // ================================
+    
+    // Routes pour les devis
+    Route::prefix('devis')->group(function () {
+        // Route pour traiter les demandes de devis
+        Route::post('store', function (Illuminate\Http\Request $request) {
+            $validated = $request->validate([
+                'type_projet' => 'required|string',
+                'budget_estime' => 'required|string',
+                'description' => 'required|string',
+                'date_debut_souhaitee' => 'nullable|date',
+                'delai_prefere' => 'required|string',
+            ]);
+
+            // Si vous avez la table devis, décommentez cette partie :
+            /*
+            $devis = App\Models\Devis::create([
+                'user_id' => auth()->id(),
+                'type_projet' => $validated['type_projet'],
+                'budget_estime' => $validated['budget_estime'],
+                'description' => $validated['description'],
+                'date_debut_souhaitee' => $validated['date_debut_souhaitee'],
+                'delai_prefere' => $validated['delai_prefere'],
+                'statut' => 'en_attente',
+            ]);
+            */
+
+            // Créer une notification pour l'équipe commerciale
+            $admins = App\Models\User::where('role', 'admin')->get();
+            $commerciaux = App\Models\User::where('role', 'commercial')->get();
+
+            foreach ($admins->concat($commerciaux) as $destinataire) {
+                App\Models\Notification::create([
+                    'user_id' => $destinataire->id,
+                    'chantier_id' => null,
+                    'type' => 'nouvelle_demande_devis',
+                    'titre' => 'Nouvelle demande de devis',
+                    'message' => "Demande de devis pour {$validated['type_projet']} de " . auth()->user()->name,
+                ]);
+            }
+
+            // Envoyer un email de confirmation (optionnel)
+            try {
+                \Illuminate\Support\Facades\Mail::send('emails.confirmation-devis', [
+                    'user' => auth()->user(),
+                    'devis' => $validated
+                ], function ($message) {
+                    $message->to(auth()->user()->email)
+                            ->subject('Confirmation de votre demande de devis');
+                });
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Erreur envoi email confirmation devis: ' . $e->getMessage());
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Votre demande de devis a été envoyée avec succès. Nous vous contacterons dans les 24h.'
+            ]);
+        })->name('devis.store');
+        
+        Route::get('nouveau', function () {
+            return view('devis.nouveau');
+        })->name('devis.nouveau');
+        
+        Route::get('mes-devis', function () {
+            $user = auth()->user();
+            
+            if (!$user->isClient()) {
+                abort(403);
+            }
+            
+            // Si vous avez créé la table devis, utilisez ceci :
+            // $devis = $user->devis()->orderBy('created_at', 'desc')->paginate(10);
+            
+            return view('devis.index', [
+                'devis' => collect(), // Remplacer par $devis quand la table sera créée
+            ]);
+        })->name('devis.index');
+    });
 });
 
 // Routes admin uniquement
@@ -146,6 +228,27 @@ Route::middleware(['auth'])->prefix('api')->group(function () {
         $count = auth()->user()->getNotificationsNonLues();
         return response()->json(['count' => $count]);
     })->name('api.notifications.count');
+
+    // Route pour les mises à jour du dashboard
+    Route::get('dashboard/progress', function () {
+        $user = auth()->user();
+        $updates = [];
+
+        // Vérifier les nouvelles notifications
+        $nouvelles_notifications = $user->notifications()
+                                       ->where('created_at', '>', now()->subMinutes(5))
+                                       ->where('lu', false)
+                                       ->get();
+
+        foreach ($nouvelles_notifications as $notification) {
+            $updates[] = [
+                'type' => 'success',
+                'message' => $notification->titre . ': ' . $notification->message
+            ];
+        }
+
+        return response()->json(['updates' => $updates]);
+    })->name('api.dashboard.progress');
     
     // API pour les statistiques (admin seulement)
     Route::middleware(['role:admin'])->get('admin/stats', function () {
@@ -195,6 +298,101 @@ Route::middleware(['auth'])->prefix('api')->group(function () {
         
         return response()->json($chantiers);
     })->name('api.chantiers.search');
+
+    // API pour récupérer les détails d'un commercial
+    Route::get('commercial/{user}', function (App\Models\User $user) {
+        if ($user->role !== 'commercial') {
+            abort(404);
+        }
+        
+        return response()->json([
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'telephone' => $user->telephone,
+            'specialites' => ['Cuisine', 'Salle de bain'], // À adapter selon vos besoins
+            'note_moyenne' => 4.7, // À remplacer par de vraies données
+            'projets_realises' => $user->chantiersCommercial()->where('statut', 'termine')->count(),
+        ]);
+    })->name('api.commercial.details');
+
+    // API pour récupérer les documents d'un chantier
+    Route::get('chantiers/{chantier}/documents', function (App\Models\Chantier $chantier) {
+        if (!auth()->user()->can('view', $chantier)) {
+            abort(403);
+        }
+        
+        $documents = $chantier->documents->map(function ($document) {
+            return [
+                'id' => $document->id,
+                'nom_original' => $document->nom_original,
+                'type' => $document->type,
+                'taille_formatee' => $document->getTailleFormatee(),
+                'date_upload' => $document->created_at->format('d/m/Y'),
+                'icone' => $document->getIconeType(),
+                'url_download' => route('documents.download', $document),
+            ];
+        });
+        
+        return response()->json(['documents' => $documents]);
+    })->name('api.chantiers.documents');
+
+    // API pour noter un projet
+    Route::post('chantiers/{chantier}/notation', function (App\Models\Chantier $chantier, Illuminate\Http\Request $request) {
+        if (!auth()->user()->can('view', $chantier) || $chantier->statut !== 'termine') {
+            abort(403);
+        }
+        
+        $validated = $request->validate([
+            'rating' => 'required|integer|min:1|max:5',
+            'commentaire' => 'nullable|string|max:1000',
+        ]);
+        
+        // Si vous avez créé la table ratings, décommentez ceci :
+        /*
+        App\Models\Rating::create([
+            'chantier_id' => $chantier->id,
+            'user_id' => auth()->id(),
+            'note_globale' => $validated['rating'],
+            'note_qualite' => $validated['rating'],
+            'note_delais' => $validated['rating'],
+            'note_communication' => $validated['rating'],
+            'commentaire' => $validated['commentaire'],
+        ]);
+        */
+        
+        // Créer une notification pour le commercial
+        App\Models\Notification::create([
+            'user_id' => $chantier->commercial_id,
+            'chantier_id' => $chantier->id,
+            'type' => 'nouvelle_notation',
+            'titre' => 'Nouvelle évaluation client',
+            'message' => auth()->user()->name . " a évalué le chantier '{$chantier->titre}' avec {$validated['rating']} étoiles",
+        ]);
+        
+        return response()->json(['success' => true, 'message' => 'Évaluation enregistrée avec succès']);
+    })->name('api.chantiers.notation');
+
+    // API pour demander un rappel
+    Route::post('rappel/demander', function (Illuminate\Http\Request $request) {
+        $validated = $request->validate([
+            'commercial_id' => 'required|exists:users,id',
+            'message' => 'nullable|string|max:500',
+        ]);
+        
+        $commercial = App\Models\User::find($validated['commercial_id']);
+        
+        // Créer une notification pour le commercial
+        App\Models\Notification::create([
+            'user_id' => $commercial->id,
+            'chantier_id' => null,
+            'type' => 'demande_rappel',
+            'titre' => 'Demande de rappel',
+            'message' => auth()->user()->name . ' demande à être rappelé. ' . ($validated['message'] ?? ''),
+        ]);
+        
+        return response()->json(['success' => true]);
+    })->name('api.rappel.demander');
 });
 
 // Routes d'erreur personnalisées
