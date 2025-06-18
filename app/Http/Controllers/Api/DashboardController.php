@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\Chantier;
 use App\Models\Notification;
 
-class DashboardController extends Controller
+class ApiDashboardController extends Controller
 {
     public function index()
     {
@@ -34,8 +34,8 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
 
-        // Charger les chantiers de base sans les relations problématiques
-        $mes_chantiers = $user->chantiers()
+        // Charger les chantiers directement via le modèle Chantier (sans relation User)
+        $mes_chantiers = Chantier::where('client_id', $user->id)
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -88,9 +88,9 @@ class DashboardController extends Controller
             }
         }
 
-        // Charger les notifications de manière sécurisée
+        // Charger les notifications directement via le modèle Notification
         try {
-            $notifications = $user->notifications()
+            $notifications = Notification::where('user_id', $user->id)
                 ->orderBy('created_at', 'desc')
                 ->take(10)
                 ->get();
@@ -110,9 +110,9 @@ class DashboardController extends Controller
     {
         $user = Auth::user();
 
-        // Statistiques pour le commercial
+        // Statistiques pour le commercial via requête directe
         try {
-            $mes_chantiers = $user->chantiersCommercial()
+            $mes_chantiers = Chantier::where('commercial_id', $user->id)
                 ->with(['client'])
                 ->orderBy('created_at', 'desc')
                 ->get();
@@ -153,7 +153,7 @@ class DashboardController extends Controller
         ];
 
         try {
-            $notifications = $user->notifications()
+            $notifications = Notification::where('user_id', $user->id)
                 ->orderBy('created_at', 'desc')
                 ->take(5)
                 ->get();

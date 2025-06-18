@@ -11,6 +11,14 @@ use App\Http\Controllers\CommentaireController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\MessageController;
+
+// ✅ IMPORTS API avec ALIAS pour éviter les conflits
+use App\Http\Controllers\Api\PhotoController as ApiPhotoController;
+use App\Http\Controllers\Api\DashboardController as ApiDashboardController;
+use App\Http\Controllers\Api\DevisController as ApiDevisController;
+use App\Http\Controllers\Api\NotificationController as ApiNotificationController;
+use App\Http\Controllers\Api\EvaluationController as ApiEvaluationController;
 
 /*
 |--------------------------------------------------------------------------
@@ -203,7 +211,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->group(function () {
     Route::post('cleanup/files', [DocumentController::class, 'cleanupOrphanedFiles'])->name('admin.cleanup.files');
 });
 
-// Routes API pour les appels AJAX (sécurisées)
+// ================================
+// ROUTES API EXISTANTES (AJAX)
+// ================================
 Route::middleware(['auth'])->prefix('api')->group(function () {
     Route::get('chantiers/{chantier}/avancement', function (App\Models\Chantier $chantier) {
         // Vérification des autorisations
@@ -395,6 +405,83 @@ Route::middleware(['auth'])->prefix('api')->group(function () {
     })->name('api.rappel.demander');
 });
 
+// ================================
+// NOUVELLES ROUTES API DASHBOARD OPTIMISÉ
+// ================================
+Route::prefix('api/v2')->middleware(['auth', 'verified'])->group(function () {
+    
+    // ===== PHOTOS =====
+    Route::prefix('photos')->group(function () {
+        Route::get('/all', [ApiPhotoController::class, 'getAllUserPhotos'])->name('api.v2.photos.all');
+        Route::get('/{photo}', [ApiPhotoController::class, 'show'])->name('api.v2.photos.show');
+        Route::get('/{photo}/download', [ApiPhotoController::class, 'download'])->name('api.v2.photos.download');
+        Route::post('/upload', [ApiPhotoController::class, 'upload'])->name('api.v2.photos.upload');
+        Route::put('/{photo}', [ApiPhotoController::class, 'update'])->name('api.v2.photos.update');
+        Route::delete('/{photo}', [ApiPhotoController::class, 'destroy'])->name('api.v2.photos.destroy');
+        Route::get('/search', [ApiPhotoController::class, 'search'])->name('api.v2.photos.search');
+    });
+    
+    // ===== CHANTIERS =====
+    Route::prefix('chantiers')->group(function () {
+        Route::get('/{chantier}/photos', [ApiPhotoController::class, 'getChantierPhotos'])->name('api.v2.chantiers.photos');
+        Route::get('/{chantier}/stats', [ApiDashboardController::class, 'getChantierStats'])->name('api.v2.chantiers.stats');
+        Route::get('/{chantier}/etapes', [ApiDashboardController::class, 'getChantierEtapes'])->name('api.v2.chantiers.etapes');
+        Route::get('/{chantier}/documents', [ApiDashboardController::class, 'getChantierDocuments'])->name('api.v2.chantiers.documents');
+    });
+    
+    // ===== DASHBOARD =====
+    Route::prefix('dashboard')->group(function () {
+        Route::get('/refresh', [ApiDashboardController::class, 'refresh'])->name('api.v2.dashboard.refresh');
+        Route::get('/stats', [ApiDashboardController::class, 'getStats'])->name('api.v2.dashboard.stats');
+        Route::get('/activity', [ApiDashboardController::class, 'getRecentActivity'])->name('api.v2.dashboard.activity');
+        Route::get('/projects/active', [ApiDashboardController::class, 'getActiveProjects'])->name('api.v2.dashboard.projects.active');
+        Route::get('/progress', [ApiDashboardController::class, 'getGlobalProgress'])->name('api.v2.dashboard.progress');
+    });
+    
+    // ===== DEVIS =====
+    Route::prefix('devis')->group(function () {
+        Route::post('/', [ApiDevisController::class, 'store'])->name('api.v2.devis.store');
+        Route::get('/', [ApiDevisController::class, 'index'])->name('api.v2.devis.index');
+        Route::get('/{devis}', [ApiDevisController::class, 'show'])->name('api.v2.devis.show');
+    });
+    
+    // ===== NOTIFICATIONS =====
+    Route::prefix('notifications')->group(function () {
+        Route::get('/', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::get('{notification}/view', [NotificationController::class, 'viewAndMarkAsRead'])->name('notifications.view');
+        Route::post('{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+        Route::post('mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
+    });
+    
+    // ===== ÉVALUATIONS =====
+    Route::prefix('evaluations')->group(function () {
+        Route::post('/', [ApiEvaluationController::class, 'store'])->name('api.v2.evaluations.store');
+        Route::get('/', [ApiEvaluationController::class, 'index'])->name('api.v2.evaluations.index');
+        Route::put('/{evaluation}', [ApiEvaluationController::class, 'update'])->name('api.v2.evaluations.update');
+        Route::get('/types', [ApiEvaluationController::class, 'getTypes'])->name('api.v2.evaluations.types');
+        Route::get('/stats', [ApiEvaluationController::class, 'getGlobalStats'])->name('api.v2.evaluations.stats');
+    });
+    
+    // ===== RECHERCHE =====
+    Route::get('/search', [ApiDashboardController::class, 'globalSearch'])->name('api.v2.search.global');
+    
+    // ===== COMMUNICATION =====
+    Route::post('/communication/message', [ApiDashboardController::class, 'sendMessage'])->name('api.v2.communication.message');
+});
+
+// Route publique pour les types de projets
+Route::get('/api/v2/project-types', [ApiDevisController::class, 'getProjectTypes'])->name('api.v2.project-types');
+
+// Route de test pour vérifier la nouvelle API
+Route::get('/api/v2/health', function () {
+    return response()->json([
+        'status' => 'ok',
+        'version' => '2.0',
+        'timestamp' => now(),
+        'message' => 'API Dashboard Client v2 fonctionnelle'
+    ]);
+})->name('api.v2.health');
+
 // Routes d'erreur personnalisées
 Route::fallback(function () {
     if (request()->expectsJson()) {
@@ -413,3 +500,24 @@ if (app()->environment('local')) {
         ]);
     });
 }
+
+// Ajouter ce bloc de routes à la fin des routes existantes (avant la dernière accolade })
+// Routes pour les messages
+Route::middleware(['auth'])->prefix('messages')->group(function () {
+    Route::get('/', [MessageController::class, 'index'])->name('messages.index');
+    Route::get('/sent', [MessageController::class, 'sent'])->name('messages.sent');
+    Route::get('/create', [MessageController::class, 'create'])->name('messages.create');
+    Route::post('/', [MessageController::class, 'store'])->name('messages.store');
+    Route::get('/{message}', [MessageController::class, 'show'])->name('messages.show');
+    Route::get('/{message}/reply', [MessageController::class, 'reply'])->name('messages.reply');
+    Route::get('/modal', [MessageController::class, 'modal'])->name('messages.modal');
+});
+
+// API pour le compteur de messages non lus
+Route::middleware(['auth'])->prefix('api')->group(function () {
+    Route::get('messages/unread-count', function () {
+        return response()->json([
+            'count' => Auth::user()->getUnreadMessagesCount()
+        ]);
+    })->name('api.messages.unread-count');
+});
