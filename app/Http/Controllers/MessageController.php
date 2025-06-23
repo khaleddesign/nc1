@@ -61,18 +61,19 @@ class MessageController extends Controller
         
         // Déterminer les utilisateurs éligibles comme destinataires selon le rôle
         if ($user->isAdmin()) {
-            $recipients = User::where('id', '!=', $user->id)->where('active', true)->get();
+            $recipients = User::where('id', '!=', $user->id)->get();
         } elseif ($user->isCommercial()) {
-            $recipients = User::where('role', 'client')->where('active', true)
-                ->orWhere('role', 'admin')
-                ->where('id', '!=', $user->id)
-                ->get();
+            $recipients = User::where(function($query) use ($user) {
+                $query->where('role', 'client')
+                    ->orWhere('role', 'admin');
+            })
+            ->where('id', '!=', $user->id)
+            ->get();
         } else { // Client
             $recipients = User::where(function($query) use ($user) {
                 $query->where('role', 'commercial')
                     ->orWhere('role', 'admin');
             })
-            ->where('active', true)
             ->get();
         }
         
@@ -119,12 +120,14 @@ class MessageController extends Controller
         $recipient = User::findOrFail($validated['recipient_id']);
         
         // Vérifier que le destinataire a un rôle compatible
-        $allowedRecipientRoles = $user->isClient() 
-            ? ['commercial', 'admin'] 
-            : ($user->isCommercial() ? ['client', 'admin'] : ['admin', 'commercial', 'client']);
-            
-        if (!in_array($recipient->role, $allowedRecipientRoles)) {
-            return back()->withErrors(['recipient_id' => 'Destinataire invalide.'])->withInput();
+        if (!$user->isAdmin()) {
+            $allowedRecipientRoles = $user->isClient() 
+                ? ['commercial', 'admin'] 
+                : ($user->isCommercial() ? ['client', 'admin'] : ['admin', 'commercial', 'client']);
+                
+            if (!in_array($recipient->role ?? 'client', $allowedRecipientRoles)) {
+                return back()->withErrors(['recipient_id' => 'Destinataire invalide.'])->withInput();
+            }
         }
         
         // Si un chantier est spécifié, vérifier que l'utilisateur y a accès
@@ -153,14 +156,21 @@ class MessageController extends Controller
         }
 
         // Créer une notification pour le destinataire
-        Notification::create([
-            'user_id' => $validated['recipient_id'],
-            'chantier_id' => $validated['chantier_id'] ?? null,
-            'type' => 'nouveau_message',
-            'titre' => 'Nouveau message',
-            'message' => "Vous avez reçu un nouveau message de {$user->name}: {$validated['subject']}",
-            'lu' => false,
-        ]);
+        // SOLUTION TEMPORAIRE : On ne crée la notification que si un chantier_id existe
+        // ou on met un chantier_id par défaut (1) pour éviter l'erreur
+        try {
+            Notification::create([
+                'user_id' => $validated['recipient_id'],
+                'chantier_id' => $validated['chantier_id'] ?? 1, // Mettre 1 par défaut au lieu de null
+                'type' => 'nouveau_message',
+                'titre' => 'Nouveau message',
+                'message' => "Vous avez reçu un nouveau message de {$user->name}: {$validated['subject']}",
+                'lu' => false,
+            ]);
+        } catch (\Exception $e) {
+            // Si la création de notification échoue, on log l'erreur mais on continue
+            \Log::error("Erreur création notification: " . $e->getMessage());
+        }
 
         return redirect()->route('messages.index')
             ->with('success', 'Message envoyé avec succès');
@@ -182,6 +192,37 @@ class MessageController extends Controller
         }
         
         return view('messages.show', compact('message'));
+    }
+
+    /**
+     * Marquer un message comme lu
+     */
+    public function markAsRead(Message $message)
+    {
+        // Vérifier que l'utilisateur est le destinataire
+        if ($message->recipient_id !== Auth::id()) {
+            abort(403);
+        }
+        
+        $message->markAsRead();
+        
+        return response()->json(['success' => true]);
+    }
+
+    /**
+     * Supprimer un message
+     */
+    public function destroy(Message $message)
+    {
+        // Vérifier que l'utilisateur est concerné par ce message
+        if ($message->sender_id !== Auth::id() && $message->recipient_id !== Auth::id()) {
+            abort(403);
+        }
+        
+        $message->delete();
+        
+        return redirect()->route('messages.index')
+            ->with('success', 'Message supprimé avec succès');
     }
 
     /**

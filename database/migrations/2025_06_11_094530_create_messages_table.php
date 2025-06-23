@@ -13,9 +13,6 @@ return new class extends Migration
     {
         Schema::create('messages', function (Blueprint $table) {
             $table->id();
-<<<<<<< HEAD
-            $table->timestamps();
-=======
             $table->foreignId('sender_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('recipient_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('chantier_id')->nullable()->constrained('chantiers')->onDelete('set null');
@@ -29,7 +26,7 @@ return new class extends Migration
             $table->index(['recipient_id', 'is_read']);
             $table->index(['sender_id']);
             $table->index(['chantier_id']);
->>>>>>> 16864cc (Initial commit)
+
         });
     }
 
@@ -40,8 +37,5 @@ return new class extends Migration
     {
         Schema::dropIfExists('messages');
     }
-<<<<<<< HEAD
 };
-=======
-};
->>>>>>> 16864cc (Initial commit)
+

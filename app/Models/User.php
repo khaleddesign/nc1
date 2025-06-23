@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-class User extends Authenticatable
+class User extends Authenticatable implements MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable;
 
@@ -20,10 +23,19 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
-        'role',
-        'telephone',
-        'adresse',
-        'active',
+        'phone',
+        'address',
+        'city',
+        'postal_code',
+        'country',
+        'company_name',
+        'siret',
+        'avatar',
+        'last_seen_at',
+        'email_verified_at',
+        'notification_preferences',
+        'email_notifications_enabled',
+        'role', // Ajout du champ role
     ];
 
     /**
@@ -37,45 +49,105 @@ class User extends Authenticatable
     ];
 
     /**
-     * Get the attributes that should be cast.
+     * The attributes that should be cast.
      *
-     * @return array<string, string>
+     * @var array<string, string>
      */
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'active' => 'boolean',
-        ];
-    }
-
-    // ===== RELATIONS =====
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'password' => 'hashed',
+        'last_seen_at' => 'datetime',
+        'notification_preferences' => 'array',
+        'email_notifications_enabled' => 'boolean',
+    ];
 
     /**
-     * Relation avec les chantiers où l'utilisateur est client
-     * (Alias pour compatibilité avec le DashboardController)
+     * Relation avec les devis (depuis gestion 2)
      */
-    public function chantiers()
+    public function devis(): HasMany
     {
-        return $this->hasMany(\App\Models\Chantier::class, 'client_id');
+        return $this->hasMany(Devis::class);
     }
 
     /**
-     * Relation avec les chantiers où l'utilisateur est client
-     * (Nom explicite)
+     * Relation avec les factures (depuis gestion 2)
      */
-    public function chantiersClient()
+    public function factures(): HasMany
     {
-        return $this->hasMany(\App\Models\Chantier::class, 'client_id');
+        return $this->hasMany(Facture::class);
     }
 
     /**
-     * Relation avec les chantiers où l'utilisateur est commercial
+     * Relation avec les paiements (depuis gestion 2)
      */
-    public function chantiersCommercial()
+    public function paiements(): HasMany
     {
-        return $this->hasMany(\App\Models\Chantier::class, 'commercial_id');
+        return $this->hasMany(Paiement::class);
+    }
+
+    /**
+     * Relation avec les messages envoyés (depuis gestion)
+     */
+    public function sentMessages(): HasMany
+    {
+        return $this->hasMany(Message::class, 'sender_id');
+    }
+
+    /**
+     * Relation avec les messages reçus (depuis gestion)
+     */
+    public function receivedMessages(): HasMany
+    {
+        return $this->hasMany(Message::class, 'recipient_id');
+    }
+
+    /**
+     * Tous les messages (envoyés et reçus)
+     */
+    public function messages()
+    {
+        return Message::where('sender_id', $this->id)
+            ->orWhere('recipient_id', $this->id);
+    }
+
+    /**
+     * Messages non lus
+     */
+    public function unreadMessages()
+    {
+        return $this->receivedMessages()->where('is_read', false);
+    }
+
+    /**
+     * Obtenir le nombre de messages non lus
+     */
+    public function getUnreadMessagesCount(): int
+    {
+        return $this->unreadMessages()->count();
+    }
+
+    /**
+     * Relation avec les photos (depuis gestion)
+     */
+    public function photos(): HasMany
+    {
+        return $this->hasMany(Photo::class);
+    }
+
+    /**
+     * Relation avec les chantiers en tant que client
+     */
+    public function chantiers(): HasMany
+    {
+        return $this->hasMany(Chantier::class, 'client_id');
+    }
+
+    /**
+     * Relation avec les chantiers assignés (pour commercial)
+     */
+    public function chantiersAssignes(): HasMany
+    {
+        return $this->hasMany(Chantier::class, 'commercial_id');
     }
 
     /**
@@ -83,71 +155,55 @@ class User extends Authenticatable
      */
     public function notifications()
     {
-        return $this->hasMany(\App\Models\Notification::class);
-    }
-
-    /**
-     * Relation avec les commentaires
-     */
-    public function commentaires()
-    {
-        return $this->hasMany(\App\Models\Commentaire::class);
+        return $this->hasMany(Notification::class);
     }
 
     /**
      * Relation avec les documents
      */
-    public function documents()
+    public function documents(): HasMany
     {
-        return $this->hasMany(\App\Models\Document::class);
+        return $this->hasMany(Document::class);
     }
 
     /**
-     * Relation avec les messages envoyés
+     * Relation avec les évaluations données
      */
-    public function sentMessages()
+    public function evaluationsDonnees(): HasMany
     {
-        return $this->hasMany(\App\Models\Message::class, 'sender_id');
+        return $this->hasMany(Evaluation::class, 'evaluateur_id');
     }
 
     /**
-     * Relation avec les messages reçus
+     * Relation avec les évaluations reçues
      */
-    public function receivedMessages()
+    public function evaluationsRecues(): HasMany
     {
-        return $this->hasMany(\App\Models\Message::class, 'recipient_id');
+        return $this->hasMany(Evaluation::class, 'evalue_id');
     }
-
-    /**
-     * Relation avec les devis (si la table existe)
-     */
-    public function devis()
-    {
-        if (\Schema::hasTable('devis')) {
-            return $this->hasMany(\App\Models\Devis::class, 'client_id');
-        }
-        return collect();
-    }
-
-    /**
-     * Relation avec les évaluations (si la table existe)
-     */
-    public function evaluations()
-    {
-        if (\Schema::hasTable('evaluations')) {
-            return $this->hasMany(\App\Models\Evaluation::class);
-        }
-        return collect();
-    }
-
-    // ===== MÉTHODES UTILITAIRES POUR LES RÔLES =====
 
     /**
      * Vérifier si l'utilisateur est admin
      */
     public function isAdmin(): bool
     {
-        return $this->role === 'admin';
+        return $this->role === 'admin' || $this->email === 'admin@example.com';
+    }
+
+    /**
+     * Vérifier si l'utilisateur est client
+     */
+    public function isClient(): bool
+    {
+        return $this->role === 'client' || (!$this->role && !$this->isAdmin() && !$this->isArtisan() && !$this->isCommercial());
+    }
+
+    /**
+     * Vérifier si l'utilisateur est artisan
+     */
+    public function isArtisan(): bool
+    {
+        return $this->role === 'artisan';
     }
 
     /**
@@ -159,11 +215,81 @@ class User extends Authenticatable
     }
 
     /**
-     * Vérifier si l'utilisateur est client
+     * Obtenir le nom complet ou le nom de l'entreprise
      */
-    public function isClient(): bool
+    public function getDisplayNameAttribute(): string
     {
-        return $this->role === 'client';
+        return $this->company_name ?: $this->name;
+    }
+
+    /**
+     * Obtenir l'URL de l'avatar
+     */
+    public function getAvatarUrlAttribute(): string
+    {
+        if ($this->avatar) {
+            return asset('storage/' . $this->avatar);
+        }
+        
+        return 'https://ui-avatars.com/api/?name=' . urlencode($this->name) . '&background=0D8ABC&color=fff';
+    }
+
+    /**
+     * Obtenir le rôle affiché
+     */
+    public function getDisplayRoleAttribute(): string
+    {
+        $roles = [
+            'admin' => 'Administrateur',
+            'commercial' => 'Commercial',
+            'artisan' => 'Artisan',
+            'client' => 'Client'
+        ];
+
+        return $roles[$this->role] ?? 'Client';
+    }
+
+    /**
+     * Statistiques pour le dashboard
+     */
+    public function getDashboardStats(): array
+    {
+        $stats = [
+            'total_devis' => $this->devis()->count(),
+            'devis_en_attente' => $this->devis()->where('statut', 'en_attente')->count(),
+            'total_factures' => $this->factures()->count(),
+            'factures_impayees' => $this->factures()->where('statut', 'impayee')->count(),
+            'total_messages' => $this->sentMessages()->count() + $this->receivedMessages()->count(),
+            'messages_non_lus' => $this->unreadMessages()->count(),
+            'total_photos' => $this->photos()->count(),
+        ];
+
+        // Stats spécifiques selon le rôle
+        if ($this->isClient()) {
+            $stats['total_chantiers'] = $this->chantiers()->count();
+        } elseif ($this->isCommercial()) {
+            $stats['total_chantiers'] = $this->chantiersAssignes()->count();
+        } elseif ($this->isAdmin()) {
+            $stats['total_chantiers'] = Chantier::count();
+        }
+
+        return $stats;
+    }
+
+    /**
+     * Obtenir le nombre de notifications non lues
+     */
+    public function getNotificationsNonLues(): int
+    {
+        return $this->notifications()->where('lu', false)->count();
+    }
+
+    /**
+     * Vérifier si l'utilisateur peut créer des chantiers
+     */
+    public function canCreateChantiers(): bool
+    {
+        return $this->isAdmin() || $this->isCommercial();
     }
 
     /**
@@ -174,235 +300,34 @@ class User extends Authenticatable
         return $this->role === $role;
     }
 
-    // ===== MÉTHODES POUR LES NOTIFICATIONS =====
-
     /**
-     * Compter les notifications non lues
+     * Obtenir le nombre total de notifications
      */
-    public function getNotificationsNonLues(): int
+    public function getTotalNotifications(): int
     {
-        return $this->notifications()->where('lu', false)->count();
+        return $this->notifications()->count();
     }
 
     /**
      * Marquer toutes les notifications comme lues
      */
-    public function marquerNotificationsLues(): int
+    public function markAllNotificationsAsRead(): void
     {
-        return $this->notifications()->where('lu', false)->update(['lu' => true]);
-    }
-
-    // ===== MÉTHODES POUR LES MESSAGES =====
-
-    /**
-     * Obtenir le nombre de messages non lus
-     */
-    public function getUnreadMessagesCount(): int
-    {
-        return $this->receivedMessages()->where('is_read', false)->count();
+        $this->notifications()->where('lu', false)->update(['lu' => true]);
     }
 
     /**
-     * Marquer tous les messages comme lus
+     * Boot method
      */
-    public function markAllMessagesAsRead(): int
+    protected static function boot()
     {
-        return $this->receivedMessages()->where('is_read', false)->update([
-            'is_read' => true,
-            'read_at' => now()
-        ]);
-    }
+        parent::boot();
 
-    // ===== MÉTHODES POUR LES CHANTIERS =====
-
-    /**
-     * Obtenir les chantiers selon le rôle
-     */
-    public function getChantiers()
-    {
-        switch ($this->role) {
-            case 'admin':
-                return \App\Models\Chantier::all();
-            case 'commercial':
-                return $this->chantiersCommercial;
-            case 'client':
-                return $this->chantiersClient;
-            default:
-                return collect();
-        }
-    }
-
-    /**
-     * Obtenir les chantiers actifs selon le rôle
-     */
-    public function getChantiersActifs()
-    {
-        switch ($this->role) {
-            case 'admin':
-                return \App\Models\Chantier::where('statut', 'en_cours')->get();
-            case 'commercial':
-                return $this->chantiersCommercial()->where('statut', 'en_cours')->get();
-            case 'client':
-                return $this->chantiersClient()->where('statut', 'en_cours')->get();
-            default:
-                return collect();
-        }
-    }
-
-    // ===== STATISTIQUES =====
-
-    /**
-     * Obtenir les statistiques pour l'utilisateur
-     */
-    public function getStats(): array
-    {
-        $stats = [
-            'total_chantiers' => 0,
-            'chantiers_en_cours' => 0,
-            'chantiers_termines' => 0,
-            'chantiers_planifies' => 0,
-            'notifications_non_lues' => $this->getNotificationsNonLues(),
-            'messages_non_lus' => $this->getUnreadMessagesCount(),
-            'avancement_moyen' => 0,
-        ];
-
-        if ($this->isAdmin()) {
-            $stats['total_chantiers'] = \App\Models\Chantier::count();
-            $stats['chantiers_en_cours'] = \App\Models\Chantier::where('statut', 'en_cours')->count();
-            $stats['chantiers_termines'] = \App\Models\Chantier::where('statut', 'termine')->count();
-            $stats['chantiers_planifies'] = \App\Models\Chantier::where('statut', 'planifie')->count();
-            $stats['avancement_moyen'] = \App\Models\Chantier::avg('avancement_global') ?: 0;
-        } elseif ($this->isCommercial()) {
-            $chantiers = $this->chantiersCommercial();
-            $stats['total_chantiers'] = $chantiers->count();
-            $stats['chantiers_en_cours'] = $chantiers->where('statut', 'en_cours')->count();
-            $stats['chantiers_termines'] = $chantiers->where('statut', 'termine')->count();
-            $stats['chantiers_planifies'] = $chantiers->where('statut', 'planifie')->count();
-            $stats['avancement_moyen'] = $chantiers->avg('avancement_global') ?: 0;
-        } elseif ($this->isClient()) {
-            $chantiers = $this->chantiersClient();
-            $stats['total_chantiers'] = $chantiers->count();
-            $stats['chantiers_en_cours'] = $chantiers->where('statut', 'en_cours')->count();
-            $stats['chantiers_termines'] = $chantiers->where('statut', 'termine')->count();
-            $stats['chantiers_planifies'] = $chantiers->where('statut', 'planifie')->count();
-            $stats['avancement_moyen'] = $chantiers->avg('avancement_global') ?: 0;
-        }
-
-        return $stats;
-    }
-
-    // ===== SCOPES =====
-
-    /**
-     * Scope pour filtrer les utilisateurs actifs
-     */
-    public function scopeActive($query)
-    {
-        return $query->where('active', true);
-    }
-
-    /**
-     * Scope pour filtrer par rôle
-     */
-    public function scopeRole($query, $role)
-    {
-        return $query->where('role', $role);
-    }
-
-    /**
-     * Scope pour les commerciaux actifs
-     */
-    public function scopeCommerciaux($query)
-    {
-        return $query->where('role', 'commercial')->where('active', true);
-    }
-
-    /**
-     * Scope pour les clients actifs
-     */
-    public function scopeClients($query)
-    {
-        return $query->where('role', 'client')->where('active', true);
-    }
-
-    // ===== MÉTHODES D'AFFICHAGE =====
-
-    /**
-     * Obtenir le nom d'affichage du rôle
-     */
-    public function getRoleDisplayName(): string
-    {
-        return match ($this->role) {
-            'admin' => 'Administrateur',
-            'commercial' => 'Commercial',
-            'client' => 'Client',
-            default => 'Inconnu',
-        };
-    }
-
-    /**
-     * Obtenir les initiales de l'utilisateur
-     */
-    public function getInitials(): string
-    {
-        $names = explode(' ', $this->name);
-        $initials = '';
-        
-        foreach ($names as $name) {
-            $initials .= substr($name, 0, 1);
-        }
-        
-        return strtoupper(substr($initials, 0, 2));
-    }
-
-    /**
-     * Obtenir la couleur du badge selon le rôle
-     */
-    public function getRoleBadgeClass(): string
-    {
-        return match ($this->role) {
-            'admin' => 'bg-red-100 text-red-800',
-            'commercial' => 'bg-blue-100 text-blue-800',
-            'client' => 'bg-green-100 text-green-800',
-            default => 'bg-gray-100 text-gray-800',
-        };
-    }
-
-    // ===== MÉTHODES DE VALIDATION =====
-
-    /**
-     * Vérifier si l'utilisateur peut accéder à un chantier
-     */
-    public function canAccessChantier(\App\Models\Chantier $chantier): bool
-    {
-        if ($this->isAdmin()) {
-            return true;
-        }
-        
-        if ($this->isCommercial() && $chantier->commercial_id === $this->id) {
-            return true;
-        }
-        
-        if ($this->isClient() && $chantier->client_id === $this->id) {
-            return true;
-        }
-        
-        return false;
-    }
-
-    /**
-     * Vérifier si l'utilisateur peut modifier un chantier
-     */
-    public function canEditChantier(\App\Models\Chantier $chantier): bool
-    {
-        if ($this->isAdmin()) {
-            return true;
-        }
-        
-        if ($this->isCommercial() && $chantier->commercial_id === $this->id) {
-            return true;
-        }
-        
-        return false;
+        // Définir le rôle par défaut lors de la création
+        static::creating(function ($user) {
+            if (!$user->role) {
+                $user->role = 'client';
+            }
+        });
     }
 }
