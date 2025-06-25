@@ -303,6 +303,23 @@ class Chantier extends Model
         return $this->date_debut->diffInDays($this->date_fin_prevue);
     }
 
+
+    /**
+ * Relation avec les devis
+ */
+public function devis()
+{
+    return $this->hasMany(Devis::class);
+}
+
+/**
+ * Relation avec les factures
+ */
+public function factures()
+{
+    return $this->hasMany(Facture::class);
+}
+
     /**
      * Retourne le budget formaté
      */
@@ -323,3 +340,4 @@ class Chantier extends Model
         return $this->statut !== 'termine';
     }
 }
+

@@ -6,7 +6,7 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    public function up()
+    public function up(): void
     {
         Schema::create('chantiers', function (Blueprint $table) {
             $table->id();
@@ -19,13 +19,17 @@ return new class extends Migration
             $table->date('date_fin_prevue')->nullable();
             $table->date('date_fin_effective')->nullable();
             $table->decimal('budget', 10, 2)->nullable();
-            $table->text('notes')->nullable();
             $table->decimal('avancement_global', 5, 2)->default(0);
+            $table->text('notes')->nullable();
             $table->timestamps();
+
+            $table->index(['statut', 'date_debut']);
+            $table->index(['client_id', 'statut']);
+            $table->index(['commercial_id', 'statut']);
         });
     }
 
-    public function down()
+    public function down(): void
     {
         Schema::dropIfExists('chantiers');
     }

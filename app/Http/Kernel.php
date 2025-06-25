@@ -66,5 +66,9 @@ class Kernel extends HttpKernel
         
         // 🔥 AJOUT CRITIQUE : Enregistrement du middleware CheckRole
         'role' => \App\Http\Middleware\CheckRole::class,
+        'ownership' => \App\Http\Middleware\CheckOwnership::class,
+'status' => \App\Http\Middleware\CheckStatus::class,
+'admin' => \App\Http\Middleware\CheckRole::class.':admin',
+'commercial' => \App\Http\Middleware\CheckRole::class.':commercial,admin',
     ];
 }

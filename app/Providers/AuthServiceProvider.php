@@ -1,9 +1,17 @@
 <?php
-// app/Providers/AuthServiceProvider.php
+
 namespace App\Providers;
 
 use App\Models\Chantier;
+use App\Models\Devis;
+use App\Models\Facture;
+use App\Models\Photo;
+use App\Models\Evaluation;
 use App\Policies\ChantierPolicy;
+use App\Policies\DevisPolicy;
+use App\Policies\FacturePolicy;
+use App\Policies\PhotoPolicy;
+use App\Policies\EvaluationPolicy;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
 
@@ -15,7 +23,11 @@ class AuthServiceProvider extends ServiceProvider
      * @var array<class-string, class-string>
      */
     protected $policies = [
-        \App\Models\Chantier::class => \App\Policies\ChantierPolicy::class,
+        Chantier::class => ChantierPolicy::class,
+        Devis::class => DevisPolicy::class,
+        Facture::class => FacturePolicy::class,
+        Photo::class => PhotoPolicy::class,
+        Evaluation::class => EvaluationPolicy::class,
     ];
 
     /**
@@ -23,7 +35,7 @@ class AuthServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        $this->registerPolicies(); // Ajout de cette ligne critique
+        $this->registerPolicies();
 
         // Gates personnalisés
         Gate::define('admin-only', function ($user) {
@@ -35,6 +47,26 @@ class AuthServiceProvider extends ServiceProvider
         });
 
         Gate::define('manage-users', function ($user) {
+            return $user->isAdmin();
+        });
+
+        Gate::define('access-admin-panel', function ($user) {
+            return $user->isAdmin();
+        });
+
+        Gate::define('view-financial-data', function ($user, $chantier = null) {
+            if ($user->isAdmin()) {
+                return true;
+            }
+            
+            if ($user->isCommercial() && $chantier) {
+                return $chantier->commercial_id === $user->id;
+            }
+            
+            return false;
+        });
+
+        Gate::define('manage-enterprise-settings', function ($user) {
             return $user->isAdmin();
         });
     }

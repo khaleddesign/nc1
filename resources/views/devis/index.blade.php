@@ -155,21 +155,21 @@
                             </tr>
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
-                            @foreach($devis as $dev)
+                            @foreach($devis as $devisItem)
                                 <tr class="hover:bg-gray-50 transition-colors">
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <div>
                                             <div class="text-sm font-medium text-gray-900">
-                                                {{ $dev->numero }}
+                                                {{ $devisItem->numero }}
                                             </div>
                                             <div class="text-sm text-gray-500">
-                                                {{ Str::limit($dev->titre, 40) }}
+                                                {{ Str::limit($devisItem->titre, 40) }}
                                             </div>
                                         </div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         @php
-                                            $badgeClass = match($dev->statut) {
+                                            $badgeClass = match($devisItem->statut) {
                                                 'brouillon' => 'bg-gray-100 text-gray-800',
                                                 'envoye' => 'bg-blue-100 text-blue-800',
                                                 'accepte' => 'bg-green-100 text-green-800',
@@ -177,7 +177,7 @@
                                                 'expire' => 'bg-yellow-100 text-yellow-800',
                                                 default => 'bg-gray-100 text-gray-800'
                                             };
-                                            $statutTexte = match($dev->statut) {
+                                            $statutTexte = match($devisItem->statut) {
                                                 'brouillon' => 'Brouillon',
                                                 'envoye' => 'Envoyé',
                                                 'accepte' => 'Accepté',
@@ -191,21 +191,21 @@
                                         </span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        <div class="font-medium">{{ number_format($dev->montant_ttc, 2) }}€</div>
-                                        <div class="text-xs text-gray-500">HT: {{ number_format($dev->montant_ht, 2) }}€</div>
+                                        <div class="font-medium">{{ number_format($devisItem->montant_ttc, 2) }}€</div>
+                                        <div class="text-xs text-gray-500">HT: {{ number_format($devisItem->montant_ht, 2) }}€</div>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {{ $dev->date_validite ? $dev->date_validite->format('d/m/Y') : '-' }}
-                                        @if($dev->date_validite && $dev->date_validite->isPast() && $dev->statut !== 'accepte')
+                                        {{ $devisItem->date_validite ? $devisItem->date_validite->format('d/m/Y') : '-' }}
+                                        @if($devisItem->date_validite && $devisItem->date_validite->isPast() && $devisItem->statut !== 'accepte')
                                             <div class="text-xs text-red-600">Expiré</div>
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {{ $dev->commercial->name }}
+                                        {{ $devisItem->commercial->name }}
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                         <div class="flex items-center space-x-2">
-                                            <a href="{{ route('chantiers.devis.show', [$chantier, $dev]) }}" 
+                                            <a href="{{ route('chantiers.devis.show', [$chantier, $devisItem]) }}" 
                                                class="text-blue-600 hover:text-blue-900 transition-colors">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -214,8 +214,8 @@
                                             </a>
                                             
                                             @can('update', $chantier)
-                                                @if($dev->statut === 'brouillon')
-                                                    <a href="{{ route('chantiers.devis.edit', [$chantier, $dev]) }}" 
+                                                @if($devisItem->statut === 'brouillon')
+                                                    <a href="{{ route('chantiers.devis.edit', [$chantier, $devisItem]) }}" 
                                                        class="text-gray-600 hover:text-gray-900 transition-colors">
                                                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
@@ -224,7 +224,7 @@
                                                 @endif
                                             @endcan
 
-                                            <a href="{{ route('devis.pdf', [$chantier, $dev]) }}" 
+                                            <a href="{{ route('chantiers.devis.pdf', [$chantier, $devisItem]) }}" 
                                                target="_blank"
                                                class="text-red-600 hover:text-red-900 transition-colors">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -245,8 +245,8 @@
                                                          x-transition
                                                          class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 border border-gray-200">
                                                         <div class="py-1">
-                                                            @if($dev->statut === 'brouillon')
-                                                                <form action="{{ route('devis.envoyer', [$chantier, $dev]) }}" method="POST" class="inline">
+                                                            @if($devisItem->statut === 'brouillon')
+                                                                <form action="{{ route('chantiers.devis.envoyer', [$chantier, $devisItem]) }}" method="POST" class="inline">
                                                                     @csrf
                                                                     <button type="submit" 
                                                                             class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
@@ -255,7 +255,7 @@
                                                                 </form>
                                                             @endif
                                                             
-                                                            <form action="{{ route('devis.dupliquer', [$chantier, $dev]) }}" method="POST" class="inline">
+                                                            <form action="{{ route('chantiers.devis.dupliquer', [$chantier, $devisItem]) }}" method="POST" class="inline">
                                                                 @csrf
                                                                 <button type="submit" 
                                                                         class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
@@ -263,8 +263,8 @@
                                                                 </button>
                                                             </form>
 
-                                                            @if($dev->statut === 'accepte' && !$dev->facture_id)
-                                                                <form action="{{ route('devis.convertir', [$chantier, $dev]) }}" method="POST" class="inline">
+                                                            @if($devisItem->statut === 'accepte' && !$devisItem->facture_id)
+                                                                <form action="{{ route('chantiers.devis.convertir-facture', [$chantier, $devisItem]) }}" method="POST" class="inline">
                                                                     @csrf
                                                                     <button type="submit" 
                                                                             class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
@@ -273,8 +273,8 @@
                                                                 </form>
                                                             @endif
 
-                                                            @if(in_array($dev->statut, ['brouillon', 'refuse']))
-                                                                <form action="{{ route('chantiers.devis.destroy', [$chantier, $dev]) }}" 
+                                                            @if(in_array($devisItem->statut, ['brouillon', 'refuse']))
+                                                                <form action="{{ route('chantiers.devis.destroy', [$chantier, $devisItem]) }}" 
                                                                       method="POST" 
                                                                       class="inline"
                                                                       onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer ce devis ?')">

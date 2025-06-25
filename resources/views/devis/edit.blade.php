@@ -395,20 +395,22 @@
 <script>
 function devisEditForm() {
     return {
-        lignes: @json($devis->lignes->map(function($ligne) {
-            return [
-                'designation' => $ligne->designation,
-                'description' => $ligne->description,
-                'quantite' => $ligne->quantite,
-                'unite' => $ligne->unite,
-                'prix_unitaire_ht' => $ligne->prix_unitaire_ht,
-                'taux_tva' => $ligne->taux_tva,
-                'remise_pourcentage' => $ligne->remise_pourcentage ?? 0,
-                'categorie' => $ligne->categorie,
-                'total_ht' => $ligne->montant_ht
-            ];
-        })->values()),
+        lignes: @json($devis->lignes->values()),
         
+        init() {
+            // Reformater les données au chargement
+            this.lignes = this.lignes.map(ligne => ({
+                designation: ligne.designation || '',
+                description: ligne.description || '',
+                quantite: ligne.quantite || 1,
+                unite: ligne.unite || 'pièce',
+                prix_unitaire_ht: ligne.prix_unitaire_ht || 0,
+                taux_tva: ligne.taux_tva || {{ $devis->taux_tva }},
+                remise_pourcentage: ligne.remise_pourcentage || 0,
+                categorie: ligne.categorie || '',
+                total_ht: ligne.montant_ht || 0
+            }));
+        },
         init() {
             // Recalculer tous les totaux au chargement
             this.lignes.forEach((ligne, index) => {
