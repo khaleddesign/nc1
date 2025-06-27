@@ -393,7 +393,7 @@
                                 Voir la facture
                             </a>
                             
-                            <a href="{{ route('chantiers.factures.pdf', [$chantier, $facture]) }}" 
+                            <a href="{{ route('factures.pdf', [$chantier, $facture]) }}" 
                                target="_blank"
                                class="w-full flex items-center justify-center px-4 py-2 border border-red-300 rounded-md shadow-sm text-sm font-medium text-red-700 bg-red-50 hover:bg-red-100">
                                 <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -404,7 +404,7 @@
 
                             @can('gererPaiements', $facture)
                                 @if(!$facture->estPayee() && $facture->statut === 'envoyee')
-                                    <form action="{{ route('chantiers.factures.relance', [$chantier, $facture]) }}" method="POST">
+                                    <form action="{{ route('factures.relance', [$chantier, $facture]) }}" method="POST">
                                         @csrf
                                         <button type="submit"
                                                 class="w-full flex items-center justify-center px-4 py-2 border border-orange-300 rounded-md shadow-sm text-sm font-medium text-orange-700 bg-orange-50 hover:bg-orange-100">
@@ -438,7 +438,7 @@
                     </button>
                 </div>
                 
-                <form action="{{ route('chantiers.factures.paiement', [$chantier, $facture]) }}" method="POST">
+                <form action="{{ route('factures.paiements.store', [$chantier, $facture]) }}" method="POST">
                     @csrf
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>

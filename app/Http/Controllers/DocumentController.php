@@ -57,15 +57,15 @@ class DocumentController extends Controller
                     continue;
                 }
 
-                // Génération d'un nom de fichier sécurisé
+                // ✅ CORRECTION : Génération cohérente du nom de fichier
                 $nomOriginal = $fichier->getClientOriginalName();
                 $extension = $fichier->getClientOriginalExtension();
                 $nomFichier = Str::uuid() . '.' . $extension;
                 
-                // Stockage sécurisé
+                // ✅ CORRECTION : Utiliser le même nom pour le stockage et la base
                 $chemin = $fichier->storeAs(
                     'documents/' . $chantier->id, 
-                    $nomFichier, 
+                    $nomFichier,  // Utiliser le même nom généré
                     'public'
                 );
                 
@@ -78,8 +78,8 @@ class DocumentController extends Controller
                     'chantier_id' => $chantier->id,
                     'user_id' => Auth::id(),
                     'nom_original' => $nomOriginal,
-                    'nom_fichier' => $nomFichier,
-                    'chemin' => $chemin,
+                    'nom_fichier' => $nomFichier,  // ✅ Nom cohérent
+                    'chemin' => $chemin,           // ✅ Chemin cohérent
                     'type_mime' => $mimeType,
                     'taille' => $fichier->getSize(),
                     'description' => $request->description,
@@ -93,11 +93,11 @@ class DocumentController extends Controller
             }
         }
 
-        // Notification au client si des documents ont été uploadés
+        // ✅ CORRECTION : Utiliser la nouvelle méthode de notification
         if (count($documentsUploades) > 0 && Auth::user()->isCommercial()) {
-            Notification::creerNotification(
+            Notification::creerNotificationChantier(
                 $chantier->client_id,
-                $chantier->id,
+                $chantier,
                 'nouveau_document',
                 'Nouveaux documents ajoutés',
                 count($documentsUploades) . " nouveau(x) document(s) ont été ajoutés au chantier '{$chantier->titre}'"
@@ -117,11 +117,27 @@ class DocumentController extends Controller
     {
         $this->authorize('view', $document->chantier);
         
+        // ✅ CORRECTION : Vérification améliorée de l'existence du fichier
         if (!Storage::disk('public')->exists($document->chemin)) {
-            abort(404, 'Fichier non trouvé');
+            \Log::error('Document non trouvé', [
+                'document_id' => $document->id,
+                'chemin_attendu' => $document->chemin,
+                'nom_fichier' => $document->nom_fichier
+            ]);
+            
+            abort(404, 'Fichier non trouvé sur le serveur');
         }
         
-        return Storage::disk('public')->download($document->chemin, $document->nom_original);
+        try {
+            return Storage::disk('public')->download($document->chemin, $document->nom_original);
+        } catch (\Exception $e) {
+            \Log::error('Erreur téléchargement document', [
+                'document_id' => $document->id,
+                'error' => $e->getMessage()
+            ]);
+            
+            abort(500, 'Erreur lors du téléchargement du fichier');
+        }
     }
 
     public function destroy(Document $document)
@@ -140,11 +156,55 @@ class DocumentController extends Controller
     }
 
     /**
-     * Méthode pour nettoyer les fichiers orphelins
+     * ✅ NOUVELLE MÉTHODE : Réparer les documents avec chemins incohérents
+     */
+    public function repairDocuments()
+    {
+        // Vérifier les permissions admin
+        if (!Auth::user()->isAdmin()) {
+            abort(403, 'Accès réservé aux administrateurs');
+        }
+        
+        $documentsRepares = 0;
+        $documents = Document::all();
+        
+        foreach ($documents as $document) {
+            // Si le fichier n'existe pas au chemin indiqué
+            if (!Storage::disk('public')->exists($document->chemin)) {
+                
+                // Essayer de trouver le fichier avec le nom_fichier
+                $cheminAlternatif = "documents/{$document->chantier_id}/{$document->nom_fichier}";
+                
+                if (Storage::disk('public')->exists($cheminAlternatif)) {
+                    // Corriger le chemin en base
+                    $document->update(['chemin' => $cheminAlternatif]);
+                    $documentsRepares++;
+                } else {
+                    \Log::warning('Document introuvable', [
+                        'document_id' => $document->id,
+                        'chemin_original' => $document->chemin,
+                        'chemin_alternatif' => $cheminAlternatif
+                    ]);
+                }
+            }
+        }
+        
+        return response()->json([
+            'success' => true,
+            'repaired' => $documentsRepares,
+            'message' => "{$documentsRepares} documents réparés."
+        ]);
+    }
+
+    /**
+     * Méthode pour nettoyer les fichiers orphelins - ✅ CORRIGÉE
      */
     public function cleanupOrphanedFiles()
     {
-        $this->authorize('admin-only');
+        // ✅ CORRECTION : Vérification simple des permissions admin
+        if (!Auth::user()->isAdmin()) {
+            abort(403, 'Accès réservé aux administrateurs');
+        }
         
         $directories = Storage::disk('public')->directories('documents');
         $deletedFiles = 0;

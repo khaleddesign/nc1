@@ -8,6 +8,7 @@ use App\Models\Facture;
 use App\Models\Ligne;
 use App\Models\Paiement;
 use App\Models\Notification;
+use App\Models\User;
 use App\Services\PdfService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -520,7 +521,7 @@ class FactureController extends Controller
 
             // Dupliquer les lignes
             foreach ($facture->lignes as $ligne) {
-                $nouvelleLigne = $ligne->dupliquer();
+                $nouvelleLigne = $ligne->replicate();
                 $nouvelleFacture->lignes()->save($nouvelleLigne);
             }
 
@@ -555,5 +556,117 @@ class FactureController extends Controller
         }]);
 
         return view('factures.recapitulatif-paiements', compact('chantier', 'facture'));
+    }
+
+    // ====================================================
+    // 🆕 NOUVELLES MÉTHODES GLOBALES POUR LA NAVBAR
+    // ====================================================
+
+    /**
+     * Vue globale de toutes les factures (nouvelle page)
+     */
+    public function globalIndex(Request $request)
+    {
+        // Vérifier les permissions globales
+        if (!Auth::user()->isAdmin() && !Auth::user()->isCommercial()) {
+            abort(403, 'Accès non autorisé.');
+        }
+
+        $query = Facture::with(['chantier.client', 'commercial', 'devis']);
+
+        // Filtrage selon le rôle
+        if (Auth::user()->isCommercial()) {
+            $query->where('commercial_id', Auth::id());
+        }
+
+        // Filtres de recherche
+        if ($request->filled('statut')) {
+            $query->where('statut', $request->statut);
+        }
+
+        if ($request->filled('commercial_id') && Auth::user()->isAdmin()) {
+            $query->where('commercial_id', $request->commercial_id);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('titre', 'like', "%{$search}%")
+                  ->orWhere('numero', 'like', "%{$search}%")
+                  ->orWhereHas('chantier', function($sq) use ($search) {
+                      $sq->where('titre', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('chantier.client', function($sq) use ($search) {
+                      $sq->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        if ($request->filled('date_debut') && $request->filled('date_fin')) {
+            $query->whereBetween('created_at', [$request->date_debut, $request->date_fin]);
+        }
+
+        // Filtres spécifiques aux factures
+        if ($request->filled('en_retard') && $request->en_retard === '1') {
+            $query->where('date_echeance', '<', now())
+                  ->whereNotIn('statut', ['payee', 'annulee']);
+        }
+
+        if ($request->filled('montant_min')) {
+            $query->where('montant_ttc', '>=', $request->montant_min);
+        }
+
+        if ($request->filled('montant_max')) {
+            $query->where('montant_ttc', '<=', $request->montant_max);
+        }
+
+        // Tri
+        $sortBy = $request->get('sort', 'created_at');
+        $sortDirection = $request->get('direction', 'desc');
+        $query->orderBy($sortBy, $sortDirection);
+
+        $factures = $query->paginate(20)->withQueryString();
+
+        // Statistiques pour le header
+        $baseQuery = Auth::user()->isAdmin() ? 
+            Facture::query() : 
+            Facture::where('commercial_id', Auth::id());
+
+        $stats = [
+            'total' => $baseQuery->count(),
+            'brouillon' => (clone $baseQuery)->where('statut', 'brouillon')->count(),
+            'envoyee' => (clone $baseQuery)->where('statut', 'envoyee')->count(),
+            'payee' => (clone $baseQuery)->where('statut', 'payee')->count(),
+            'en_retard' => (clone $baseQuery)->where('date_echeance', '<', now())->whereNotIn('statut', ['payee', 'annulee'])->count(),
+            'montant_total' => (clone $baseQuery)->sum('montant_ttc'),
+            'montant_paye' => (clone $baseQuery)->where('statut', 'payee')->sum('montant_ttc'),
+            'montant_impaye' => (clone $baseQuery)->whereNotIn('statut', ['payee', 'annulee'])->sum('montant_ttc'),
+        ];
+
+        // Liste des commerciaux pour le filtre (admin seulement)
+        $commerciaux = Auth::user()->isAdmin() ? 
+            User::where('role', 'commercial')->get() : 
+            collect();
+
+        return view('factures.global-index', compact('factures', 'stats', 'commerciaux'));
+    }
+
+    /**
+     * Affichage d'une facture depuis la vue globale
+     */
+    public function globalShow(Facture $facture)
+    {
+        // Vérifier les permissions pour cette facture
+        if (!Auth::user()->isAdmin() && 
+            (!Auth::user()->isCommercial() || $facture->commercial_id !== Auth::id()) &&
+            (!Auth::user()->isClient() || $facture->chantier->client_id !== Auth::id())) {
+            abort(403, 'Accès non autorisé.');
+        }
+        
+        $facture->load(['chantier.client', 'commercial', 'devis', 'lignes', 'paiements' => function($query) {
+            $query->orderBy('date_paiement', 'desc');
+        }]);
+
+        return view('factures.global-show', compact('facture'));
     }
 }

@@ -150,8 +150,6 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/', [NotificationController::class, 'index'])->name('notifications.index');
         Route::post('{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
         Route::post('mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
-            Route::get('{notification}/view', [NotificationController::class, 'viewAndMarkAsRead'])->name('notifications.view');
-
     });
 
     // Routes pour les messages
@@ -294,18 +292,3 @@ Route::fallback(function () {
     return response()->view('errors.404', [], 404);
 });
 
-
-
-// ================================
-    // 🆕 ROUTES GLOBALES POUR NAVBAR
-    // ================================
-    
-    // Vues globales des devis (tous les devis, pas par chantier)
-    Route::get('/devis', [DevisController::class, 'globalIndex'])->name('devis.index');
-    
-    // Vues globales des factures (toutes les factures, pas par chantier)  
-    Route::get('/factures', [FactureController::class, 'globalIndex'])->name('factures.index');
-    
-    // Routes d'actions directes sur devis/factures depuis les pages globales
-    Route::get('/devis/{devis}/show', [DevisController::class, 'globalShow'])->name('devis.show');
-    Route::get('/factures/{facture}/show', [FactureController::class, 'globalShow'])->name('factures.show');

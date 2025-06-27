@@ -87,7 +87,7 @@ class Facture extends Model
         $montantTVA = $this->lignes->sum('montant_tva');
         $montantTTC = $montantHT + $montantTVA;
 
-       $this->updateQuietly([
+        $this->update([
             'montant_ht' => $montantHT,
             'montant_tva' => $montantTVA,
             'montant_ttc' => $montantTTC,

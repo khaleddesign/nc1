@@ -272,7 +272,7 @@
                                                 @endif
                                             @endcan
 
-                                            <a href="{{ route('chantiers.factures.pdf', [$chantier, $facture]) }}" 
+                                            <a href="{{ route('factures.pdf', [$chantier, $facture]) }}" 
                                                target="_blank"
                                                class="text-red-600 hover:text-red-900 transition-colors">
                                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -294,7 +294,7 @@
                                                          class="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg z-10 border border-gray-200">
                                                         <div class="py-1">
                                                             @if($facture->statut === 'brouillon')
-                                                                <form action="{{ route('chantiers.factures.envoyer', [$chantier, $facture]) }}" method="POST" class="inline">
+                                                                <form action="{{ route('factures.envoyer', [$chantier, $facture]) }}" method="POST" class="inline">
                                                                     @csrf
                                                                     <button type="submit" 
                                                                             class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
@@ -311,7 +311,7 @@
                                                             @endif
 
                                                             @if($facture->statut === 'envoyee' && !$facture->estPayee())
-                                                                <form action="{{ route('chantiers.factures.relance', [$chantier, $facture]) }}" method="POST" class="inline">
+                                                                <form action="{{ route('factures.relance', [$chantier, $facture]) }}" method="POST" class="inline">
                                                                     @csrf
                                                                     <button type="submit" 
                                                                             class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
@@ -320,7 +320,7 @@
                                                                 </form>
                                                             @endif
                                                             
-                                                            <form action="{{ route('chantiers.factures.dupliquer', [$chantier, $facture]) }}" method="POST" class="inline">
+                                                            <form action="{{ route('factures.dupliquer', [$chantier, $facture]) }}" method="POST" class="inline">
                                                                 @csrf
                                                                 <button type="submit" 
                                                                         class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
@@ -392,7 +392,7 @@
                     </button>
                 </div>
                 
-                <form action="{{ route('chantiers.factures.paiement', [$chantier, $facture]) }}" method="POST">
+                <form action="{{ route('factures.paiements.store', [$chantier, $facture]) }}" method="POST">
                     @csrf
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         <div>

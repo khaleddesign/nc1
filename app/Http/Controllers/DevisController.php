@@ -8,6 +8,7 @@ use App\Models\Devis;
 use App\Models\Facture;
 use App\Models\Ligne;
 use App\Models\Notification;
+use App\Models\User;
 use App\Services\PdfService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -317,7 +318,7 @@ class DevisController extends Controller
     }
 
     /**
-     * Envoyer le devis au client
+     * Envoyer le devis au client - ✅ CORRIGÉ
      */
     public function envoyer(Chantier $chantier, Devis $devis)
     {
@@ -335,10 +336,10 @@ class DevisController extends Controller
             // Marquer comme envoyé
             $devis->marquerEnvoye();
 
-            // Notification au client
-            Notification::creerNotification(
+            // ✅ NOTIFICATION CORRIGÉE - avec devis_id
+            Notification::creerNotificationDevis(
                 $chantier->client_id,
-                $chantier->id,
+                $devis,
                 'nouveau_devis',
                 'Nouveau devis reçu',
                 "Un nouveau devis '{$devis->titre}' vous a été envoyé pour le chantier '{$chantier->titre}'."
@@ -355,7 +356,7 @@ class DevisController extends Controller
     }
 
     /**
-     * Accepter un devis (côté client)
+     * Accepter un devis (côté client) - ✅ CORRIGÉ
      */
     public function accepter(Request $request, Chantier $chantier, Devis $devis)
     {
@@ -390,10 +391,10 @@ class DevisController extends Controller
                 );
             }
 
-            // Notification au commercial
-            Notification::creerNotification(
+            // ✅ NOTIFICATION CORRIGÉE - avec devis_id
+            Notification::creerNotificationDevis(
                 $devis->commercial_id,
-                $chantier->id,
+                $devis,
                 'devis_accepte',
                 'Devis accepté',
                 "Le client {$chantier->client->name} a accepté le devis '{$devis->titre}'."
@@ -407,7 +408,7 @@ class DevisController extends Controller
     }
 
     /**
-     * Refuser un devis (côté client)
+     * Refuser un devis (côté client) - ✅ CORRIGÉ
      */
     public function refuser(Request $request, Chantier $chantier, Devis $devis)
     {
@@ -430,10 +431,10 @@ class DevisController extends Controller
         try {
             $devis->refuser();
 
-            // Notification au commercial
-            Notification::creerNotification(
+            // ✅ NOTIFICATION CORRIGÉE - avec devis_id
+            Notification::creerNotificationDevis(
                 $devis->commercial_id,
-                $chantier->id,
+                $devis,
                 'devis_refuse',
                 'Devis refusé',
                 "Le client {$chantier->client->name} a refusé le devis '{$devis->titre}'." .
@@ -448,7 +449,7 @@ class DevisController extends Controller
     }
 
     /**
-     * Convertir un devis en facture
+     * Convertir un devis en facture - ✅ CORRIGÉ
      */
     public function convertirEnFacture(Chantier $chantier, Devis $devis)
     {
@@ -506,10 +507,10 @@ class DevisController extends Controller
                 'converted_at' => now(),
             ]);
 
-            // Notification au client
-            Notification::creerNotification(
+            // ✅ NOTIFICATION CORRIGÉE - avec facture_id (pas devis_id)
+            Notification::creerNotificationFacture(
                 $chantier->client_id,
-                $chantier->id,
+                $facture,
                 'nouvelle_facture',
                 'Nouvelle facture générée',
                 "Une facture '{$facture->numero}' a été générée à partir du devis '{$devis->numero}'."
@@ -604,7 +605,7 @@ class DevisController extends Controller
 
             // Dupliquer les lignes
             foreach ($devis->lignes as $ligne) {
-                $nouvelleLigne = $ligne->dupliquer();
+                $nouvelleLigne = $ligne->replicate();
                 $nouveauDevis->lignes()->save($nouvelleLigne);
             }
 
@@ -621,5 +622,98 @@ class DevisController extends Controller
             DB::rollback();
             return back()->with('error', 'Erreur lors de la duplication : ' . $e->getMessage());
         }
+    }
+
+    // ====================================================
+    // 🆕 NOUVELLES MÉTHODES GLOBALES POUR LA NAVBAR
+    // ====================================================
+
+    /**
+     * Vue globale de tous les devis (nouvelle page)
+     */
+    public function globalIndex(Request $request)
+    {
+        // Vérifier les permissions globales
+        if (!Auth::user()->isAdmin() && !Auth::user()->isCommercial()) {
+            abort(403, 'Accès non autorisé.');
+        }
+
+        $query = Devis::with(['chantier.client', 'commercial']);
+
+        // Filtrage selon le rôle
+        if (Auth::user()->isCommercial()) {
+            $query->where('commercial_id', Auth::id());
+        }
+
+        // Filtres de recherche
+        if ($request->filled('statut')) {
+            $query->where('statut', $request->statut);
+        }
+
+        if ($request->filled('commercial_id') && Auth::user()->isAdmin()) {
+            $query->where('commercial_id', $request->commercial_id);
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('titre', 'like', "%{$search}%")
+                  ->orWhere('numero', 'like', "%{$search}%")
+                  ->orWhereHas('chantier', function($sq) use ($search) {
+                      $sq->where('titre', 'like', "%{$search}%");
+                  })
+                  ->orWhereHas('chantier.client', function($sq) use ($search) {
+                      $sq->where('name', 'like', "%{$search}%");
+                  });
+            });
+        }
+
+        if ($request->filled('date_debut') && $request->filled('date_fin')) {
+            $query->whereBetween('created_at', [$request->date_debut, $request->date_fin]);
+        }
+
+        // Tri
+        $sortBy = $request->get('sort', 'created_at');
+        $sortDirection = $request->get('direction', 'desc');
+        $query->orderBy($sortBy, $sortDirection);
+
+        $devis = $query->paginate(20)->withQueryString();
+
+        // Statistiques pour le header
+        $baseQuery = Auth::user()->isAdmin() ? 
+            Devis::query() : 
+            Devis::where('commercial_id', Auth::id());
+
+        $stats = [
+            'total' => $baseQuery->count(),
+            'brouillon' => (clone $baseQuery)->where('statut', 'brouillon')->count(),
+            'envoye' => (clone $baseQuery)->where('statut', 'envoye')->count(),
+            'accepte' => (clone $baseQuery)->where('statut', 'accepte')->count(),
+            'refuse' => (clone $baseQuery)->where('statut', 'refuse')->count(),
+        ];
+
+        // Liste des commerciaux pour le filtre (admin seulement)
+        $commerciaux = Auth::user()->isAdmin() ? 
+            User::where('role', 'commercial')->get() : 
+            collect();
+
+        return view('devis.global-index', compact('devis', 'stats', 'commerciaux'));
+    }
+
+    /**
+     * Affichage d'un devis depuis la vue globale
+     */
+    public function globalShow(Devis $devis)
+    {
+        // Vérifier les permissions pour ce devis
+        if (!Auth::user()->isAdmin() && 
+            (!Auth::user()->isCommercial() || $devis->commercial_id !== Auth::id()) &&
+            (!Auth::user()->isClient() || $devis->chantier->client_id !== Auth::id())) {
+            abort(403, 'Accès non autorisé.');
+        }
+        
+        $devis->load(['chantier.client', 'commercial', 'lignes', 'facture']);
+
+        return view('devis.global-show', compact('devis'));
     }
 }
