@@ -39,7 +39,35 @@ class ChantierPolicy
         // Uniquement admin ou commercial
         return $user->isAdmin() || $user->isCommercial();
     }
+// À ajouter APRÈS la méthode delete() existante (vers la ligne 45) :
 
+    /**
+     * Peut masquer un chantier (suppression douce pour commercial).
+     */
+    public function softDelete(User $user, Chantier $chantier): bool
+    {
+        // Commercial rattaché : peut masquer SON chantier
+        if ($user->isCommercial() && $chantier->commercial_id === $user->id) {
+            return true;
+        }
+        
+        // Admin : peut aussi masquer (en plus de supprimer)
+        if ($user->isAdmin()) {
+            return true;
+        }
+        
+        return false;
+    }
+
+    /**
+     * Peut restaurer la visibilité d'un chantier masqué.
+     */
+    public function restore(User $user, Chantier $chantier): bool
+    {
+        // Seul l'admin peut restaurer un chantier masqué
+        return $user->isAdmin();
+    }
+    
     /**
      * Peut éditer un chantier.
      */

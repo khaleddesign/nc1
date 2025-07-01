@@ -66,6 +66,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('chantiers/calendrier', [ChantierController::class, 'calendrier'])->name('chantiers.calendrier');
     Route::get('chantiers/search', [ChantierController::class, 'search'])->name('chantiers.search');
     
+Route::post('chantiers/{chantier}/soft-delete', [ChantierController::class, 'softDelete'])->name('chantiers.soft-delete');
+Route::post('chantiers/{chantier}/restore', [ChantierController::class, 'restore'])->name('chantiers.restore');
     // ✅ RESOURCE ROUTE APRÈS (pour éviter les conflits)
     Route::resource('chantiers', ChantierController::class);
     
@@ -309,3 +311,28 @@ Route::fallback(function () {
     // Routes d'actions directes sur devis/factures depuis les pages globales
     Route::get('/devis/{devis}/show', [DevisController::class, 'globalShow'])->name('devis.show');
     Route::get('/factures/{facture}/show', [FactureController::class, 'globalShow'])->name('factures.show');
+
+    // 🆕 Routes globales pour les devis (AJOUTER CECI)
+Route::middleware(['auth'])->group(function () {
+    // Vues globales des devis 
+    Route::get('/devis/create', [DevisController::class, 'globalCreate'])->name('devis.create'); // 🆕 NOUVEAU
+    Route::post('/devis', [DevisController::class, 'globalStore'])->name('devis.store');        // 🆕 NOUVEAU
+});
+
+// 🆕 ROUTES GLOBALES POUR LES DEVIS (à ajouter dans routes/web.php)
+// ================================
+
+Route::middleware(['auth'])->group(function () {
+    // Vues globales des devis (tous les devis, pas par chantier)
+    Route::get('/devis', [DevisController::class, 'globalIndex'])->name('devis.index');
+    Route::get('/devis/create', [DevisController::class, 'globalCreate'])->name('devis.create'); // 🆕 NOUVEAU
+    Route::post('/devis', [DevisController::class, 'globalStore'])->name('devis.store');        // 🆕 NOUVEAU
+    Route::get('/devis/{devis}/show', [DevisController::class, 'globalShow'])->name('devis.show');
+});
+
+// Routes globales devis (à ajouter)
+Route::middleware(['auth'])->prefix('devis-dashboard')->name('devis.global.')->group(function () {
+    Route::get('/', [DevisController::class, 'globalIndex'])->name('index');
+    Route::get('/create', [DevisController::class, 'globalCreate'])->name('create');
+    Route::post('/', [DevisController::class, 'globalStore'])->name('store');
+});

@@ -30,6 +30,7 @@ class Chantier extends Model
         'notes',
         'avancement_global',
         'active',
+        'hidden_for_commercial',
     ];
 
     protected $casts = [
@@ -39,6 +40,7 @@ class Chantier extends Model
         'budget'             => 'decimal:2',
         'avancement_global'  => 'decimal:2',
         'active'             => 'boolean',
+        'hidden_for_commercial' => 'boolean'
     ];
 
     // ===== RELATIONS =====
@@ -338,6 +340,48 @@ public function factures()
     public function peutEtreModifie()
     {
         return $this->statut !== 'termine';
+    }
+
+
+
+
+    /**
+     * Scope pour filtrer les chantiers visibles pour un commercial
+     */
+    public function scopeVisibleForCommercial($query, $commercialId = null)
+    {
+        if ($commercialId) {
+            return $query->where('commercial_id', $commercialId)
+                        ->where('hidden_for_commercial', false);
+        }
+        
+        return $query->where('hidden_for_commercial', false);
+    }
+    
+    /**
+     * Cacher le chantier pour le commercial
+     */
+    public function hideForCommercial()
+    {
+        $this->update(['hidden_for_commercial' => true]);
+        return $this;
+    }
+    
+    /**
+     * Restaurer la visibilité pour le commercial (pour les admins)
+     */
+    public function showForCommercial()
+    {
+        $this->update(['hidden_for_commercial' => false]);
+        return $this;
+    }
+    
+    /**
+     * Vérifier si le chantier est caché pour le commercial
+     */
+    public function isHiddenForCommercial()
+    {
+        return $this->hidden_for_commercial;
     }
 }
 

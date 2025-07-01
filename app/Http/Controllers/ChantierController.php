@@ -23,10 +23,12 @@ class ChantierController extends Controller
         $query = Chantier::with(['client', 'commercial']);
 
         // Filtrage selon le rôle
-        if ($user->isCommercial()) {
-            $query->where('commercial_id', $user->id);
+           if ($user->isCommercial()) {
+            $query->where('commercial_id', $user->id)
+                  ->where('hidden_for_commercial', false); // ← AJOUTER CETTE LIGNE
         } elseif ($user->isClient()) {
-            $query->where('client_id', $user->id);
+            $query->where('client_id', $user->id)
+                  ->where('hidden_for_commercial', false); // ← AJOUTER CETTE LIGNE
         }
 
         // Filtres de recherche
@@ -473,4 +475,41 @@ class ChantierController extends Controller
 
         return response()->stream($callback, 200, $headers);
     }
+
+
+ /**
+     * Masquer un chantier pour le commercial (suppression douce)
+     */
+    public function softDelete(Chantier $chantier)
+    {
+        $this->authorize('softDelete', $chantier);
+
+        $titre = $chantier->titre;
+        
+        // Masquer le chantier
+        $chantier->hideForCommercial();
+
+        return redirect()->route('chantiers.index')
+                        ->with('success', "Le chantier '{$titre}' a été masqué de votre liste.");
+    }
+
+    /**
+     * Restaurer la visibilité d'un chantier (pour les admins)
+     */
+    public function restore(Chantier $chantier)
+    {
+        $this->authorize('restore', $chantier);
+
+        $titre = $chantier->titre;
+        
+        // Restaurer la visibilité
+        $chantier->showForCommercial();
+
+        return redirect()->route('chantiers.index')
+                        ->with('success', "Le chantier '{$titre}' est de nouveau visible pour le commercial.");
+    }
+
+
 }
+
+

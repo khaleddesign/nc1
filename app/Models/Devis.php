@@ -1,5 +1,4 @@
 <?php
-// app/Models/Devis.php - VERSION CORRIGÉE
 
 namespace App\Models;
 
@@ -41,7 +40,10 @@ class Devis extends Model
     // Flag pour éviter la récursion
     protected static $calculatingTotals = false;
 
-    // Relations
+    // ====================================================
+    // RELATIONS
+    // ====================================================
+
     public function chantier()
     {
         return $this->belongsTo(Chantier::class);
@@ -62,7 +64,13 @@ class Devis extends Model
         return $this->belongsTo(Facture::class);
     }
 
-    // 🔧 MÉTHODE CORRIGÉE - Plus de récursion infinie
+    // ====================================================
+    // MÉTHODES MÉTIER
+    // ====================================================
+
+    /**
+     * Calculer les montants du devis
+     */
     public function calculerMontants(): void
     {
         // Éviter la récursion
@@ -97,7 +105,9 @@ class Devis extends Model
         }
     }
 
-    // Méthodes métier inchangées...
+    /**
+     * Générer un numéro de devis
+     */
     public static function genererNumero(): string
     {
         $annee = date('Y');
@@ -115,26 +125,42 @@ class Devis extends Model
         return sprintf('DEV-%s-%03d', $annee, $numero);
     }
 
+    /**
+     * Vérifier si le devis est expiré
+     */
     public function isExpire(): bool
     {
         return $this->date_validite->isPast() && $this->statut === 'envoye';
     }
 
+    /**
+     * Vérifier si le devis peut être modifié
+     */
     public function peutEtreModifie(): bool
     {
-        return in_array($this->statut, ['brouillon', 'envoye']);
+        return in_array($this->statut, ['brouillon', 'envoye']) && 
+               !$this->facture_id;
     }
 
+    /**
+     * Vérifier si le devis peut être accepté
+     */
     public function peutEtreAccepte(): bool
     {
         return $this->statut === 'envoye' && !$this->isExpire();
     }
 
+    /**
+     * Vérifier si le devis peut être converti en facture
+     */
     public function peutEtreConverti(): bool
     {
         return $this->statut === 'accepte' && !$this->facture_id;
     }
 
+    /**
+     * Accepter le devis
+     */
     public function accepter(): void
     {
         $this->update([
@@ -143,6 +169,9 @@ class Devis extends Model
         ]);
     }
 
+    /**
+     * Refuser le devis
+     */
     public function refuser(): void
     {
         $this->update([
@@ -151,6 +180,9 @@ class Devis extends Model
         ]);
     }
 
+    /**
+     * Marquer le devis comme envoyé
+     */
     public function marquerEnvoye(): void
     {
         $this->update([
@@ -159,6 +191,9 @@ class Devis extends Model
         ]);
     }
 
+    /**
+     * Signer électroniquement le devis
+     */
     public function signerElectroniquement(string $signature, string $ip): void
     {
         $this->update([
@@ -168,20 +203,29 @@ class Devis extends Model
         ]);
     }
 
-    // Accesseurs inchangés...
-    public function getStatutBadgeClassAttribute(): string
+    // ====================================================
+    // ACCESSEURS (Méthodes pour les vues)
+    // ====================================================
+
+    /**
+     * 🔧 CORRIGÉ : Méthode normale au lieu d'attribut
+     */
+    public function getStatutBadgeClass(): string
     {
         return match ($this->statut) {
-            'brouillon' => 'bg-gray-100 text-gray-800',
-            'envoye' => 'bg-blue-100 text-blue-800',
-            'accepte' => 'bg-green-100 text-green-800',
-            'refuse' => 'bg-red-100 text-red-800',
-            'expire' => 'bg-orange-100 text-orange-800',
-            default => 'bg-gray-100 text-gray-800',
+            'brouillon' => 'badge-secondary',
+            'envoye' => 'badge-info', 
+            'accepte' => 'badge-success',
+            'refuse' => 'badge-danger',
+            'expire' => 'badge-warning',
+            default => 'badge-secondary',
         };
     }
 
-    public function getStatutTexteAttribute(): string
+    /**
+     * 🔧 CORRIGÉ : Méthode normale au lieu d'attribut
+     */
+    public function getStatutTexte(): string
     {
         return match ($this->statut) {
             'brouillon' => 'Brouillon',
@@ -193,12 +237,18 @@ class Devis extends Model
         };
     }
 
+    /**
+     * 🔧 CORRIGÉ : Accesseur Laravel classique
+     */
     public function getClientNomAttribute(): string
     {
-        return $this->client_info['nom'] ?? $this->chantier->client->name ?? 'Client inconnu';
+        return $this->client_info['nom'] ?? $this->chantier?->client?->name ?? 'Client inconnu';
     }
 
-    // Scopes inchangés...
+    // ====================================================
+    // SCOPES
+    // ====================================================
+
     public function scopeEnCours($query)
     {
         return $query->whereIn('statut', ['brouillon', 'envoye']);
@@ -215,7 +265,10 @@ class Devis extends Model
         return $query->where('statut', 'accepte');
     }
 
-    // 🔧 ÉVÉNEMENTS CORRIGÉS - Plus de récursion
+    // ====================================================
+    // ÉVÉNEMENTS
+    // ====================================================
+
     protected static function boot()
     {
         parent::boot();
@@ -231,8 +284,5 @@ class Devis extends Model
                 $devis->date_validite = now()->addDays(30);
             }
         });
-
-        // Événement saved supprimé pour éviter la récursion
-        // Le calcul des montants doit être fait manuellement après modification des lignes
     }
 }

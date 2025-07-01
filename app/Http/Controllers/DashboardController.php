@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Chantier;
+use App\Models\Devis;
 use App\Models\Notification;
 
 class DashboardController extends Controller
@@ -120,7 +121,18 @@ class DashboardController extends Controller
             $mes_chantiers = collect();
         }
 
-        // Initialiser les relations manquantes
+        // 🆕 AJOUT: Récupérer les devis en cours du commercial
+        try {
+            $mes_devis = Devis::where('commercial_id', $user->id)
+                ->whereIn('statut', ['brouillon', 'envoye']) // Devis en attente
+                ->with(['chantier.client'])
+                ->orderBy('created_at', 'desc')
+                ->get();
+        } catch (\Exception $e) {
+            $mes_devis = collect();
+        }
+
+        // Initialiser les relations manquantes pour les chantiers
         foreach ($mes_chantiers as $chantier) {
             try {
                 if (!$chantier->relationLoaded('etapes')) {
@@ -165,6 +177,7 @@ class DashboardController extends Controller
             $notifications = collect();
         }
 
-        return view('dashboard.commercial', compact('mes_chantiers', 'stats', 'notifications'));
+        // 🆕 AJOUT: Passer les devis à la vue
+        return view('dashboard.commercial', compact('mes_chantiers', 'mes_devis', 'stats', 'notifications'));
     }
 }
