@@ -4,26 +4,45 @@
 
 @section('content')
 <div class="min-h-screen bg-gray-50">
-    {{-- Header avec statistiques --}}
+    {{-- 🆕 HEADER COMPACTÉ --}}
     <div class="bg-white shadow-sm border-b border-gray-200">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div class="md:flex md:items-center md:justify-between">
                 <div class="flex-1 min-w-0">
                     <h1 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
-                        <svg class="w-8 h-8 inline mr-3 text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                        <svg class="w-6 h-6 inline mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621 0 1.125-.504 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                         </svg>
                         Gestion des Devis
                     </h1>
-                    <div class="mt-2 flex flex-col sm:mt-0 sm:flex-row sm:flex-wrap sm:space-x-6">
-                        <div class="mt-2 flex items-center text-sm text-gray-500">
-                            <span class="font-medium">{{ $stats['total'] }}</span> devis au total
+                    {{-- 🆕 STATISTIQUES COMPACTES EN UNE LIGNE --}}
+                    <div class="mt-2 flex flex-wrap items-center gap-6 text-sm">
+                        <div class="flex items-center">
+                            <span class="text-2xl font-bold text-blue-600 mr-1">{{ $stats['total'] }}</span>
+                            <span class="text-gray-600">Total</span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="text-lg font-semibold text-gray-500 mr-1">{{ $stats['brouillon'] }}</span>
+                            <span class="text-gray-600">Brouillons</span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="text-lg font-semibold text-yellow-600 mr-1">{{ $stats['envoye'] }}</span>
+                            <span class="text-gray-600">Envoyés</span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="text-lg font-semibold text-green-600 mr-1">{{ $stats['accepte'] }}</span>
+                            <span class="text-gray-600">Acceptés</span>
+                        </div>
+                        <div class="flex items-center">
+                            <span class="text-lg font-semibold text-red-600 mr-1">{{ $stats['refuse'] }}</span>
+                            <span class="text-gray-600">Refusés</span>
                         </div>
                     </div>
                 </div>
+                {{-- 🆕 BOUTON CORRIGÉ --}}
                 @can('commercial-or-admin')
                 <div class="mt-4 flex md:mt-0 md:ml-4">
-                    <a href="{{ route('chantiers.index') }}" class="btn btn-primary">
+                    <a href="{{ route('devis.create') }}" class="btn btn-primary">
                         <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                         </svg>
@@ -32,34 +51,10 @@
                 </div>
                 @endcan
             </div>
-
-            {{-- Statistiques rapides --}}
-            <div class="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-5">
-                <div class="bg-blue-50 rounded-lg p-4">
-                    <div class="text-2xl font-bold text-blue-700">{{ $stats['total'] }}</div>
-                    <div class="text-sm text-blue-600">Total</div>
-                </div>
-                <div class="bg-gray-50 rounded-lg p-4">
-                    <div class="text-2xl font-bold text-gray-700">{{ $stats['brouillon'] }}</div>
-                    <div class="text-sm text-gray-600">Brouillons</div>
-                </div>
-                <div class="bg-yellow-50 rounded-lg p-4">
-                    <div class="text-2xl font-bold text-yellow-700">{{ $stats['envoye'] }}</div>
-                    <div class="text-sm text-yellow-600">Envoyés</div>
-                </div>
-                <div class="bg-green-50 rounded-lg p-4">
-                    <div class="text-2xl font-bold text-green-700">{{ $stats['accepte'] }}</div>
-                    <div class="text-sm text-green-600">Acceptés</div>
-                </div>
-                <div class="bg-red-50 rounded-lg p-4">
-                    <div class="text-2xl font-bold text-red-700">{{ $stats['refuse'] }}</div>
-                    <div class="text-sm text-red-600">Refusés</div>
-                </div>
-            </div>
         </div>
     </div>
 
-    {{-- Filtres et recherche --}}
+    {{-- Filtres et recherche - INCHANGÉ --}}
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <form method="GET" action="{{ route('devis.index') }}" class="space-y-4">
@@ -137,7 +132,7 @@
             </form>
         </div>
 
-        {{-- Liste des devis --}}
+        {{-- Liste des devis - INCHANGÉ --}}
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             @if($devis->count() > 0)
                 <div class="overflow-x-auto">

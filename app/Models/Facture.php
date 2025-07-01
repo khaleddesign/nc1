@@ -10,15 +10,17 @@ class Facture extends Model
 {
     use HasFactory;
 
-    protected $fillable = [
-        'numero', 'chantier_id', 'commercial_id', 'devis_id', 'titre',
-        'description', 'statut', 'client_info', 'date_emission',
-        'date_echeance', 'date_envoi', 'montant_ht', 'montant_tva',
-        'montant_ttc', 'taux_tva', 'montant_paye', 'montant_restant',
-        'date_paiement_complet', 'conditions_reglement', 'delai_paiement',
-        'reference_commande', 'notes_internes', 'nb_relances',
-        'derniere_relance'
-    ];
+protected $fillable = [
+    'numero', 'chantier_id', 'commercial_id', 'devis_id', 'titre',
+    'description', 'statut', 'client_info', 'date_emission',
+    'date_echeance', 'date_envoi', 'montant_ht', 'montant_tva',
+    'montant_ttc', 'taux_tva', 'montant_paye', 'montant_restant',
+    'date_paiement_complet', 'conditions_reglement', 'delai_paiement',
+    'reference_commande', 'notes_internes', 'nb_relances',
+    'derniere_relance', // ← Virgule ajoutée ici
+    'donnees_structurees', 'format_electronique', 'hash_integrite',
+    'conforme_loi', 'date_transmission', 'numero_chronologique'
+];
 
     protected $casts = [
         'client_info' => 'array',
@@ -35,6 +37,9 @@ class Facture extends Model
         'montant_restant' => 'decimal:2',
         'delai_paiement' => 'integer',
         'nb_relances' => 'integer',
+        'donnees_structurees' => 'array',
+    'conforme_loi' => 'boolean',
+    'date_transmission' => 'datetime',
     ];
 
     // Relations
@@ -240,30 +245,90 @@ class Facture extends Model
     }
 
     // Événements du modèle
-    protected static function boot()
-    {
-        parent::boot();
+protected static function boot()
+{
+    parent::boot();
 
-        static::creating(function ($facture) {
-            if (!$facture->numero) {
-                $facture->numero = static::genererNumero();
-            }
-            if (!$facture->date_emission) {
-                $facture->date_emission = now();
-            }
-            if (!$facture->date_echeance) {
-                $facture->date_echeance = now()->addDays($facture->delai_paiement ?? 30);
-            }
-            
-            $facture->montant_restant = $facture->montant_ttc;
-        });
+    static::creating(function ($facture) {
+        if (!$facture->numero) {
+            $facture->numero = static::genererNumero();
+        }
+        if (!$facture->date_emission) {
+            $facture->date_emission = now();
+        }
+        if (!$facture->date_echeance) {
+            $facture->date_echeance = now()->addDays($facture->delai_paiement ?? 30);
+        }
+        
+        $facture->montant_restant = $facture->montant_ttc;
+    });
 
-        static::saved(function ($facture) {
-            // Éviter la récursion lors du calcul des montants
-            if ($facture->isDirty(['montant_ht', 'montant_tva', 'montant_ttc'])) {
-                return;
-            }
-            $facture->calculerMontants();
-        });
-    }
+    static::created(function ($facture) {
+        // 🆕 Générer automatiquement la conformité électronique si activée
+        if (config('facturation.facturation_electronique.active')) {
+            $facture->genererConformiteElectronique();
+        }
+    });
+
+    static::saved(function ($facture) {
+        // Éviter la récursion lors du calcul des montants
+        if ($facture->isDirty(['montant_ht', 'montant_tva', 'montant_ttc'])) {
+            return;
+        }
+        $facture->calculerMontants();
+    });
 }
+
+
+
+
+    // Nouvelles méthodes pour la facturation électronique
+public function estConformeFacturationElectronique(): bool
+{
+    return $this->conforme_loi && 
+           !empty($this->donnees_structurees) && 
+           !empty($this->hash_integrite);
+}
+
+public function genererConformiteElectronique(): void
+{
+    app(\App\Services\FacturationElectroniqueService::class)->marquerConforme($this);
+}
+
+public function verifierIntegriteElectronique(): bool
+{
+    return app(\App\Services\FacturationElectroniqueService::class)->verifierIntegrite($this);
+}
+
+public function exporterFormatElectronique(string $format = 'json'): array
+{
+    return app(\App\Services\FacturationElectroniqueService::class)->exporterFormatElectronique($this, $format);
+}
+
+// Accesseur pour le statut de conformité
+public function getStatutConformiteAttribute(): string
+{
+    if (!$this->conforme_loi) {
+        return 'non_conforme';
+    }
+    
+    if (!$this->verifierIntegriteElectronique()) {
+        return 'integrite_compromise';
+    }
+    
+    return 'conforme';
+}
+
+public function getStatutConformiteBadgeAttribute(): string
+{
+    return match($this->statut_conformite) {
+        'conforme' => 'bg-green-100 text-green-800',
+        'non_conforme' => 'bg-red-100 text-red-800',
+        'integrite_compromise' => 'bg-orange-100 text-orange-800',
+        default => 'bg-gray-100 text-gray-800',
+    };
+}
+}
+
+
+

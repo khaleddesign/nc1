@@ -11,6 +11,7 @@ use App\Services\PdfService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class DevisController extends Controller
 {
@@ -32,12 +33,10 @@ class DevisController extends Controller
     public function index(Chantier $chantier)
     {
         $this->authorize('view', $chantier);
-
         $devis = $chantier->devis()
             ->with(['commercial', 'lignes'])
             ->orderBy('created_at', 'desc')
             ->paginate(10);
-
         return view('devis.index', compact('chantier', 'devis'));
     }
 
@@ -48,9 +47,7 @@ class DevisController extends Controller
     {
         $this->authorize('update', $chantier);
         $this->checkDevisCreationPermission();
-
         $devis = $this->createBaseDevis($chantier);
-
         return view('devis.create', compact('chantier', 'devis'));
     }
 
@@ -60,20 +57,14 @@ class DevisController extends Controller
     public function store(Request $request, Chantier $chantier)
     {
         $this->authorize('update', $chantier);
-
         $validated = $this->validateDevisData($request);
-
         DB::beginTransaction();
-        
         try {
             $devis = $this->createDevisWithLines($chantier, $validated);
-            
             DB::commit();
-
             return redirect()
                 ->route('chantiers.devis.show', [$chantier, $devis])
                 ->with('success', 'Devis créé avec succès.');
-
         } catch (\Exception $e) {
             DB::rollback();
             return back()
@@ -89,9 +80,7 @@ class DevisController extends Controller
     {
         $this->authorize('view', $chantier);
         $this->ensureDevisBelongsToChantier($devis, $chantier);
-
         $devis->load(['commercial', 'lignes', 'facture']);
-
         return view('devis.show', compact('chantier', 'devis'));
     }
 
@@ -102,13 +91,10 @@ class DevisController extends Controller
     {
         $this->authorize('update', $chantier);
         $this->ensureDevisBelongsToChantier($devis, $chantier);
-
         if (!$devis->peutEtreModifie()) {
             return back()->with('error', 'Ce devis ne peut plus être modifié.');
         }
-
         $devis->load('lignes');
-
         return view('devis.edit', compact('chantier', 'devis'));
     }
 
@@ -119,24 +105,17 @@ class DevisController extends Controller
     {
         $this->authorize('update', $chantier);
         $this->ensureDevisBelongsToChantier($devis, $chantier);
-
         if (!$devis->peutEtreModifie()) {
             return back()->with('error', 'Ce devis ne peut plus être modifié.');
         }
-
         $validated = $this->validateDevisData($request);
-
         DB::beginTransaction();
-        
         try {
             $this->updateDevisWithLines($devis, $validated);
-            
             DB::commit();
-
             return redirect()
                 ->route('chantiers.devis.show', [$chantier, $devis])
                 ->with('success', 'Devis modifié avec succès.');
-
         } catch (\Exception $e) {
             DB::rollback();
             return back()
@@ -152,14 +131,11 @@ class DevisController extends Controller
     {
         $this->authorize('update', $chantier);
         $this->ensureDevisBelongsToChantier($devis, $chantier);
-
         if ($devis->statut === 'accepte' || $devis->facture_id) {
             return back()->with('error', 'Ce devis ne peut pas être supprimé car il a été accepté ou converti en facture.');
         }
-
         $numero = $devis->numero;
         $devis->delete();
-
         return redirect()
             ->route('chantiers.devis.index', $chantier)
             ->with('success', "Devis {$numero} supprimé avec succès.");
@@ -175,12 +151,10 @@ class DevisController extends Controller
     public function globalIndex(Request $request)
     {
         $this->checkDevisAccessPermission();
-
         $query = $this->buildDevisQuery($request);
         $devis = $query->paginate(20)->withQueryString();
         $stats = $this->getDevisStats();
         $commerciaux = $this->getCommerciauxForFilter();
-
         return view('devis.global-index', compact('devis', 'stats', 'commerciaux'));
     }
 
@@ -190,10 +164,8 @@ class DevisController extends Controller
     public function globalCreate()
     {
         $this->checkDevisCreationPermission();
-
         $chantiers = $this->getChantiersForCommercial();
         $devis = $this->createBaseDevis();
-
         return view('devis.global-create', compact('devis', 'chantiers'));
     }
 
@@ -203,24 +175,20 @@ class DevisController extends Controller
     public function globalStore(Request $request)
     {
         $this->checkDevisCreationPermission();
-
         $validated = $this->validateGlobalDevisData($request);
 
         DB::beginTransaction();
-        
         try {
             $devis = $this->createGlobalDevisWithLines($validated, $request);
-            
             DB::commit();
 
-            $message = $request->input('action') === 'save_and_send' 
-                ? 'Devis créé et envoyé avec succès.' 
+            $message = $request->input('action') === 'save_and_send'
+                ? 'Devis créé et envoyé avec succès.'
                 : 'Devis créé avec succès.';
 
             return redirect()
                 ->route('devis.show', $devis)
                 ->with('success', $message);
-
         } catch (\Exception $e) {
             DB::rollback();
             return back()
@@ -235,9 +203,7 @@ class DevisController extends Controller
     public function globalShow(Devis $devis)
     {
         $this->checkDevisViewPermission($devis);
-        
         $devis->load(['chantier.client', 'commercial', 'lignes', 'facture']);
-
         return view('devis.global-show', compact('devis'));
     }
 
@@ -252,14 +218,11 @@ class DevisController extends Controller
     {
         $this->authorize('update', $chantier);
         $this->ensureDevisBelongsToChantier($devis, $chantier);
-
         if ($devis->statut !== 'brouillon') {
             return back()->with('error', 'Seuls les devis en brouillon peuvent être envoyés.');
         }
-
         try {
             $devis->marquerEnvoye();
-
             Notification::creerNotificationDevis(
                 $chantier->client_id,
                 $devis,
@@ -267,9 +230,7 @@ class DevisController extends Controller
                 'Nouveau devis reçu',
                 "Un nouveau devis '{$devis->titre}' vous a été envoyé pour le chantier '{$chantier->titre}'."
             );
-
             return back()->with('success', 'Devis envoyé au client avec succès.');
-
         } catch (\Exception $e) {
             return back()->with('error', 'Erreur lors de l\'envoi : ' . $e->getMessage());
         }
@@ -282,23 +243,18 @@ class DevisController extends Controller
     {
         $this->checkClientPermission($chantier);
         $this->ensureDevisBelongsToChantier($devis, $chantier);
-
         if (!$devis->peutEtreAccepte()) {
             return back()->with('error', 'Ce devis ne peut plus être accepté (expiré ou déjà traité).');
         }
-
         $request->validate([
             'signature' => 'nullable|string',
             'commentaire_client' => 'nullable|string|max:1000',
         ]);
-
         try {
             $devis->accepter();
-
             if ($request->filled('signature')) {
                 $devis->signerElectroniquement($request->signature, $request->ip());
             }
-
             Notification::creerNotificationDevis(
                 $devis->commercial_id,
                 $devis,
@@ -306,9 +262,7 @@ class DevisController extends Controller
                 'Devis accepté',
                 "Le client {$chantier->client->name} a accepté le devis '{$devis->titre}'."
             );
-
             return back()->with('success', 'Devis accepté avec succès. Merci pour votre confiance !');
-
         } catch (\Exception $e) {
             return back()->with('error', 'Erreur lors de l\'acceptation : ' . $e->getMessage());
         }
@@ -321,23 +275,18 @@ class DevisController extends Controller
     {
         $this->checkClientPermission($chantier);
         $this->ensureDevisBelongsToChantier($devis, $chantier);
-
         if (!$devis->peutEtreAccepte()) {
             return back()->with('error', 'Ce devis ne peut plus être refusé.');
         }
-
         $request->validate([
             'raison_refus' => 'nullable|string|max:1000',
         ]);
-
         try {
             $devis->refuser();
-
             $message = "Le client {$chantier->client->name} a refusé le devis '{$devis->titre}'.";
             if ($request->raison_refus) {
                 $message .= " Raison : {$request->raison_refus}";
             }
-
             Notification::creerNotificationDevis(
                 $devis->commercial_id,
                 $devis,
@@ -345,9 +294,7 @@ class DevisController extends Controller
                 'Devis refusé',
                 $message
             );
-
             return back()->with('success', 'Devis refusé. Votre retour a été transmis.');
-
         } catch (\Exception $e) {
             return back()->with('error', 'Erreur lors du refus : ' . $e->getMessage());
         }
@@ -360,21 +307,16 @@ class DevisController extends Controller
     {
         $this->authorize('update', $chantier);
         $this->ensureDevisBelongsToChantier($devis, $chantier);
-
         if (!$devis->peutEtreConverti()) {
             return back()->with('error', 'Ce devis ne peut pas être converti en facture.');
         }
-
         DB::beginTransaction();
-
         try {
             $facture = $this->createFactureFromDevis($chantier, $devis);
-            
             $devis->update([
                 'facture_id' => $facture->id,
                 'converted_at' => now(),
             ]);
-
             Notification::creerNotificationFacture(
                 $chantier->client_id,
                 $facture,
@@ -382,13 +324,10 @@ class DevisController extends Controller
                 'Nouvelle facture générée',
                 "Une facture '{$facture->numero}' a été générée à partir du devis '{$devis->numero}'."
             );
-
             DB::commit();
-
             return redirect()
                 ->route('chantiers.factures.show', [$chantier, $facture])
                 ->with('success', "Devis converti en facture {$facture->numero} avec succès.");
-
         } catch (\Exception $e) {
             DB::rollback();
             return back()->with('error', 'Erreur lors de la conversion : ' . $e->getMessage());
@@ -402,18 +341,13 @@ class DevisController extends Controller
     {
         $this->authorize('update', $chantier);
         $this->ensureDevisBelongsToChantier($devis, $chantier);
-
         DB::beginTransaction();
-
         try {
             $nouveauDevis = $this->duplicateDevis($devis);
-            
             DB::commit();
-
             return redirect()
                 ->route('chantiers.devis.edit', [$chantier, $nouveauDevis])
                 ->with('success', "Devis dupliqué avec succès ({$nouveauDevis->numero}).");
-
         } catch (\Exception $e) {
             DB::rollback();
             return back()->with('error', 'Erreur lors de la duplication : ' . $e->getMessage());
@@ -431,7 +365,6 @@ class DevisController extends Controller
     {
         $this->authorize('view', $chantier);
         $this->ensureDevisBelongsToChantier($devis, $chantier);
-
         return $this->generatePdfResponse($devis, 'attachment');
     }
 
@@ -442,17 +375,96 @@ class DevisController extends Controller
     {
         $this->authorize('view', $chantier);
         $this->ensureDevisBelongsToChantier($devis, $chantier);
-
         return $this->generatePdfResponse($devis, 'inline');
+    }
+
+    // ====================================================
+    // 🆕 NOUVELLES MÉTHODES CONFORMITÉ ÉLECTRONIQUE
+    // ====================================================
+
+    /**
+     * Générer manuellement la conformité électronique
+     */
+    public function genererConformite(Chantier $chantier, Devis $devis)
+    {
+        $this->authorize('update', $chantier);
+        $this->ensureDevisBelongsToChantier($devis, $chantier);
+
+        try {
+            $devis->genererConformiteElectronique();
+
+            return back()->with('success', 'Devis rendu conforme à la facturation électronique.');
+        } catch (\Exception $e) {
+            return back()->with('error', 'Erreur lors de la génération : ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Export au format électronique (JSON ou XML)
+     */
+    public function exportElectronique(Chantier $chantier, Devis $devis, string $format)
+    {
+        $this->authorize('view', $chantier);
+        $this->ensureDevisBelongsToChantier($devis, $chantier);
+
+        try {
+            $donnees = $devis->exporterFormatElectronique($format);
+
+            $filename = match($format) {
+                'json' => "devis_electronique_{$devis->numero}.json",
+                'xml' => "devis_electronique_{$devis->numero}.xml",
+                default => throw new \InvalidArgumentException("Format non supporté: {$format}")
+            };
+
+            $contentType = match($format) {
+                'json' => 'application/json',
+                'xml' => 'application/xml',
+                default => 'application/octet-stream'
+            };
+
+            $content = match($format) {
+                'json' => json_encode($donnees, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
+                'xml' => is_string($donnees) ? $donnees : $this->arrayToXml($donnees),
+                default => json_encode($donnees)
+            };
+
+            return response($content)
+                ->header('Content-Type', $contentType)
+                ->header('Content-Disposition', "{$disposition}; filename=\"{$filename}\"")
+                ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+                ->header('Pragma', 'no-cache')
+                ->header('Expires', '0');
+
+        } catch (\Exception $e) {
+            return back()->with('error', 'Erreur lors de l\'export : ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Vérifier l'intégrité du devis
+     */
+    public function verifierIntegrite(Chantier $chantier, Devis $devis)
+    {
+        $this->authorize('view', $chantier);
+        $this->ensureDevisBelongsToChantier($devis, $chantier);
+
+        try {
+            $integrite = $devis->verifierIntegriteElectronique();
+
+            if ($integrite) {
+                return back()->with('success', 'Intégrité du devis vérifiée avec succès.');
+            } else {
+                return back()->with('warning', 'Attention : L\'intégrité du devis a été compromise.');
+            }
+        } catch (\Exception $e) {
+            return back()->with('error', 'Erreur lors de la vérification : ' . $e->getMessage());
+        }
     }
 
     // ====================================================
     // MÉTHODES PRIVÉES
     // ====================================================
 
-    /**
-     * Vérifier les permissions de création de devis
-     */
     private function checkDevisCreationPermission()
     {
         if (!Auth::user()->isAdmin() && !Auth::user()->isCommercial()) {
@@ -460,9 +472,6 @@ class DevisController extends Controller
         }
     }
 
-    /**
-     * Vérifier les permissions d'accès aux devis
-     */
     private function checkDevisAccessPermission()
     {
         if (!Auth::user()->isAdmin() && !Auth::user()->isCommercial()) {
@@ -470,21 +479,15 @@ class DevisController extends Controller
         }
     }
 
-    /**
-     * Vérifier les permissions pour voir un devis spécifique
-     */
     private function checkDevisViewPermission(Devis $devis)
     {
-        if (!Auth::user()->isAdmin() && 
+        if (!Auth::user()->isAdmin() &&
             (!Auth::user()->isCommercial() || $devis->commercial_id !== Auth::id()) &&
-            (!Auth::user()->isClient() || $devis->chantier->client_id !== Auth::id())) {
+            (!Auth::user()->isClient() || $devis->chantier?->client_id !== Auth::id())) {
             abort(403, 'Accès non autorisé.');
         }
     }
 
-    /**
-     * Vérifier les permissions client
-     */
     private function checkClientPermission(Chantier $chantier)
     {
         if (!Auth::user()->isAdmin() && Auth::id() !== $chantier->client_id) {
@@ -492,9 +495,6 @@ class DevisController extends Controller
         }
     }
 
-    /**
-     * S'assurer que le devis appartient au chantier
-     */
     private function ensureDevisBelongsToChantier(Devis $devis, Chantier $chantier)
     {
         if ($devis->chantier_id !== $chantier->id) {
@@ -502,9 +502,6 @@ class DevisController extends Controller
         }
     }
 
-    /**
-     * Créer un devis de base
-     */
     private function createBaseDevis(Chantier $chantier = null)
     {
         $baseData = [
@@ -514,7 +511,6 @@ class DevisController extends Controller
             'modalites_paiement' => 'Paiement à 30 jours fin de mois',
             'conditions_generales' => config('chantiers.devis.conditions_generales_defaut', ''),
         ];
-
         if ($chantier) {
             $baseData += [
                 'chantier_id' => $chantier->id,
@@ -527,13 +523,9 @@ class DevisController extends Controller
                 ],
             ];
         }
-
         return new Devis($baseData);
     }
 
-    /**
-     * Valider les données d'un devis
-     */
     private function validateDevisData(Request $request)
     {
         return $request->validate([
@@ -545,7 +537,6 @@ class DevisController extends Controller
             'modalites_paiement' => 'nullable|string',
             'conditions_generales' => 'nullable|string',
             'notes_internes' => 'nullable|string',
-            
             'lignes' => 'required|array|min:1',
             'lignes.*.designation' => 'required|string|max:255',
             'lignes.*.description' => 'nullable|string',
@@ -558,20 +549,15 @@ class DevisController extends Controller
         ]);
     }
 
-    /**
-     * Valider les données d'un devis global
-     */
     private function validateGlobalDevisData(Request $request)
     {
         return $request->validate([
             'type_devis' => 'required|in:nouveau_prospect,chantier_existant',
-            'chantier_id' => 'nullable|exists:chantiers,id',
-            
+            'chantier_id' => 'nullable|required_if:type_devis,chantier_existant|exists:chantiers,id',
             'client_nom' => 'required_if:type_devis,nouveau_prospect|string|max:255',
-            'client_email' => 'required_if:type_devis,nouveau_prospect|email',
+            'client_email' => 'required_if:type_devis,nouveau_prospect|email|unique:users,email',
             'client_telephone' => 'nullable|string|max:20',
             'client_adresse' => 'nullable|string',
-            
             'titre' => 'required|string|max:255',
             'description' => 'nullable|string',
             'date_validite' => 'required|date|after:today',
@@ -580,7 +566,6 @@ class DevisController extends Controller
             'modalites_paiement' => 'nullable|string',
             'conditions_generales' => 'nullable|string',
             'notes_internes' => 'nullable|string',
-            
             'lignes' => 'required|array|min:1',
             'lignes.*.designation' => 'required|string|max:255',
             'lignes.*.description' => 'nullable|string',
@@ -593,9 +578,6 @@ class DevisController extends Controller
         ]);
     }
 
-    /**
-     * Créer un devis avec ses lignes
-     */
     private function createDevisWithLines(Chantier $chantier, array $validated)
     {
         $devis = $chantier->devis()->create([
@@ -619,12 +601,18 @@ class DevisController extends Controller
         $this->createLignesForDevis($devis, $validated['lignes'], $validated['taux_tva']);
         $devis->calculerMontants();
 
+        // 🆕 Générer automatiquement la conformité électronique
+        if (config('facturation.facturation_electronique.active', true)) {
+            try {
+                $devis->genererConformiteElectronique();
+            } catch (\Exception $e) {
+                \Log::warning('Erreur génération conformité devis: ' . $e->getMessage());
+            }
+        }
+
         return $devis;
     }
 
-    /**
-     * Mettre à jour un devis avec ses lignes
-     */
     private function updateDevisWithLines(Devis $devis, array $validated)
     {
         $devis->update([
@@ -643,9 +631,6 @@ class DevisController extends Controller
         $devis->calculerMontants();
     }
 
-    /**
-     * Créer un devis global avec ses lignes - VERSION CORRIGÉE
-     */
     private function createGlobalDevisWithLines(array $validated, Request $request)
     {
         if ($validated['type_devis'] === 'chantier_existant') {
@@ -658,42 +643,45 @@ class DevisController extends Controller
             ];
             $chantier_id = $chantier->id;
         } else {
-            // 🔥 SOLUTION TEMPORAIRE : Créer un chantier "prospect"
             $clientInfo = [
                 'nom' => $validated['client_nom'],
                 'email' => $validated['client_email'],
                 'telephone' => $validated['client_telephone'] ?? null,
                 'adresse' => $validated['client_adresse'] ?? null,
             ];
-            
-            // Créer ou récupérer un client prospect
+
             $client = User::firstOrCreate(
                 ['email' => $validated['client_email']],
                 [
                     'name' => $validated['client_nom'],
                     'role' => 'client',
-                    'telephone' => $validated['client_telephone'],
-                    'adresse' => $validated['client_adresse'],
-                    'password' => bcrypt('temp_password_' . time()),
+                    'telephone' => $validated['client_telephone'] ?? null,
+                    'adresse' => $validated['client_adresse'] ?? null,
+                    'password' => Hash::make('temp_password_' . time()),
                     'email_verified_at' => now(),
                 ]
             );
 
-            // Créer un chantier temporaire pour le prospect
             $chantier = Chantier::create([
                 'client_id' => $client->id,
                 'commercial_id' => Auth::id(),
                 'titre' => 'Prospect - ' . $validated['titre'],
                 'description' => 'Chantier créé automatiquement pour devis prospect',
-                'statut' => 'planifie', // 🎯 Utiliser une valeur autorisée par l'ENUM
-                'date_debut' => now()->addDays(30), // 🎯 Corriger le nom du champ aussi
+                'statut' => 'planifie',
+                'date_debut' => now()->addDays(30),
             ]);
-            
+
+            $clientInfo = [
+                'nom' => $validated['client_nom'],
+                'email' => $validated['client_email'],
+                'telephone' => $validated['client_telephone'] ?? null,
+                'adresse' => $validated['client_adresse'] ?? null,
+            ];
             $chantier_id = $chantier->id;
         }
 
         $devis = Devis::create([
-            'chantier_id' => $chantier_id, // 🎯 Maintenant toujours défini
+            'chantier_id' => $chantier_id,
             'commercial_id' => Auth::id(),
             'titre' => $validated['titre'],
             'description' => $validated['description'],
@@ -711,7 +699,7 @@ class DevisController extends Controller
 
         if ($request->input('action') === 'save_and_send') {
             $devis->marquerEnvoye();
-            
+
             Notification::creerNotificationDevis(
                 $chantier->client_id,
                 $devis,
@@ -724,9 +712,6 @@ class DevisController extends Controller
         return $devis;
     }
 
-    /**
-     * Créer les lignes d'un devis
-     */
     private function createLignesForDevis(Devis $devis, array $lignesData, float $tauxTvaDefaut)
     {
         foreach ($lignesData as $index => $ligneData) {
@@ -734,13 +719,12 @@ class DevisController extends Controller
             $prixUnitaire = floatval($ligneData['prix_unitaire_ht']);
             $tauxTva = floatval($ligneData['taux_tva'] ?? $tauxTvaDefaut);
             $remisePourcentage = floatval($ligneData['remise_pourcentage'] ?? 0);
-            
             $montantBrut = $quantite * $prixUnitaire;
             $remiseMontant = $montantBrut * ($remisePourcentage / 100);
             $montantHt = $montantBrut - $remiseMontant;
             $montantTva = $montantHt * ($tauxTva / 100);
             $montantTtc = $montantHt + $montantTva;
-            
+
             $devis->lignes()->create([
                 'ordre' => $index + 1,
                 'designation' => $ligneData['designation'],
@@ -759,9 +743,6 @@ class DevisController extends Controller
         }
     }
 
-    /**
-     * Construire la requête pour les devis globaux
-     */
     private function buildDevisQuery(Request $request)
     {
         $query = Devis::with(['chantier.client', 'commercial']);
@@ -780,13 +761,13 @@ class DevisController extends Controller
 
         if ($request->filled('search')) {
             $search = $request->search;
-            $query->where(function($q) use ($search) {
+            $query->where(function ($q) use ($search) {
                 $q->where('titre', 'like', "%{$search}%")
                   ->orWhere('numero', 'like', "%{$search}%")
-                  ->orWhereHas('chantier', function($sq) use ($search) {
+                  ->orWhereHas('chantier', function ($sq) use ($search) {
                       $sq->where('titre', 'like', "%{$search}%");
                   })
-                  ->orWhereHas('chantier.client', function($sq) use ($search) {
+                  ->orWhereHas('chantier.client', function ($sq) use ($search) {
                       $sq->where('name', 'like', "%{$search}%");
                   });
             });
@@ -798,18 +779,16 @@ class DevisController extends Controller
 
         $sortBy = $request->get('sort', 'created_at');
         $sortDirection = $request->get('direction', 'desc');
+
         $query->orderBy($sortBy, $sortDirection);
 
         return $query;
     }
 
-    /**
-     * Obtenir les statistiques des devis
-     */
     private function getDevisStats()
     {
-        $baseQuery = Auth::user()->isAdmin() ? 
-            Devis::query() : 
+        $baseQuery = Auth::user()->isAdmin() ?
+            Devis::query() :
             Devis::where('commercial_id', Auth::id());
 
         return [
@@ -821,29 +800,20 @@ class DevisController extends Controller
         ];
     }
 
-    /**
-     * Obtenir la liste des commerciaux pour le filtre
-     */
     private function getCommerciauxForFilter()
     {
-        return Auth::user()->isAdmin() ? 
-            User::where('role', 'commercial')->get() : 
+        return Auth::user()->isAdmin() ?
+            User::where('role', 'commercial')->get() :
             collect();
     }
 
-    /**
-     * Obtenir les chantiers pour un commercial
-     */
     private function getChantiersForCommercial()
     {
-        return Auth::user()->isAdmin() ? 
-            Chantier::with('client')->get() : 
+        return Auth::user()->isAdmin() ?
+            Chantier::with('client')->get() :
             Auth::user()->chantiersCommercial()->with('client')->get();
     }
 
-    /**
-     * Créer une facture à partir d'un devis
-     */
     private function createFactureFromDevis(Chantier $chantier, Devis $devis)
     {
         $facture = Facture::create([
@@ -861,7 +831,6 @@ class DevisController extends Controller
             'delai_paiement' => 30,
         ]);
 
-        // Copier les lignes du devis vers la facture
         foreach ($devis->lignes as $ligneDevis) {
             $facture->lignes()->create([
                 'ordre' => $ligneDevis->ordre,
@@ -883,14 +852,11 @@ class DevisController extends Controller
         return $facture;
     }
 
-    /**
-     * Dupliquer un devis
-     */
     private function duplicateDevis(Devis $devis)
     {
         $nouveauDevis = $devis->replicate([
-            'id', 'numero', 'created_at', 'updated_at', 
-            'statut', 'date_envoi', 'date_reponse', 
+            'id', 'numero', 'created_at', 'updated_at',
+            'statut', 'date_envoi', 'date_reponse',
             'signature_client', 'signed_at', 'signature_ip',
             'facture_id', 'converted_at'
         ]);
@@ -900,32 +866,47 @@ class DevisController extends Controller
         $nouveauDevis->date_validite = now()->addDays(30);
         $nouveauDevis->save();
 
-        // Dupliquer les lignes
         foreach ($devis->lignes as $ligne) {
             $nouvelleLigne = $ligne->replicate();
             $nouveauDevis->lignes()->save($nouvelleLigne);
         }
 
         $nouveauDevis->calculerMontants();
-
         return $nouveauDevis;
     }
 
-    /**
-     * Générer une réponse PDF
-     */
     private function generatePdfResponse(Devis $devis, string $disposition = 'attachment')
     {
         try {
             $pdf = $this->pdfService->genererDevisPdf($devis);
             $filename = "devis_{$devis->numero}.pdf";
-            
+
             return response($pdf)
                 ->header('Content-Type', 'application/pdf')
                 ->header('Content-Disposition', "{$disposition}; filename=\"{$filename}\"");
-
         } catch (\Exception $e) {
             return back()->with('error', 'Erreur lors de la génération du PDF : ' . $e->getMessage());
+        }
+    }
+
+    // Méthodes utilitaires supplémentaires si nécessaire...
+
+    private function arrayToXml(array $data): string
+    {
+        $xml = new \SimpleXMLElement('<devis_electronique/>');
+        $this->arrayToXmlRecursive($data, $xml);
+        return $xml->asXML();
+    }
+
+    private function arrayToXmlRecursive(array $data, \SimpleXMLElement $xml): void
+    {
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                $subnode = $xml->addChild($key);
+                $this->arrayToXmlRecursive($value, $subnode);
+            } else {
+                $xml->addChild($key, htmlspecialchars($value ?? ''));
+            }
         }
     }
 }

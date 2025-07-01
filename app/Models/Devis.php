@@ -12,15 +12,17 @@ class Devis extends Model
 
     protected $table = 'devis';
 
-    protected $fillable = [
-        'numero', 'chantier_id', 'commercial_id', 'titre', 'description',
-        'statut', 'client_info', 'date_emission', 'date_validite',
-        'date_envoi', 'date_reponse', 'montant_ht', 'montant_tva',
-        'montant_ttc', 'taux_tva', 'conditions_generales',
-        'delai_realisation', 'modalites_paiement', 'signature_client',
-        'signed_at', 'signature_ip', 'facture_id', 'converted_at',
-        'notes_internes'
-    ];
+  protected $fillable = [
+    'numero', 'chantier_id', 'commercial_id', 'titre', 'description',
+    'statut', 'client_info', 'date_emission', 'date_validite',
+    'date_envoi', 'date_reponse', 'montant_ht', 'montant_tva',
+    'montant_ttc', 'taux_tva', 'conditions_generales',
+    'delai_realisation', 'modalites_paiement', 'signature_client',
+    'signed_at', 'signature_ip', 'facture_id', 'converted_at',
+    'notes_internes',
+    'donnees_structurees', 'format_electronique', 'hash_integrite',
+    'conforme_loi', 'date_transmission', 'numero_chronologique'
+];
 
     protected $casts = [
         'client_info' => 'array',
@@ -35,6 +37,9 @@ class Devis extends Model
         'montant_ttc' => 'decimal:2',
         'taux_tva' => 'decimal:2',
         'delai_realisation' => 'integer',
+        'donnees_structurees' => 'array',
+    'conforme_loi' => 'boolean',
+    'date_transmission' => 'datetime',
     ];
 
     // Flag pour éviter la récursion
@@ -269,20 +274,102 @@ class Devis extends Model
     // ÉVÉNEMENTS
     // ====================================================
 
-    protected static function boot()
-    {
-        parent::boot();
+ protected static function boot()
+{
+    parent::boot();
 
-        static::creating(function ($devis) {
-            if (!$devis->numero) {
-                $devis->numero = static::genererNumero();
+    static::creating(function ($devis) {
+        if (!$devis->numero) {
+            $devis->numero = static::genererNumero();
+        }
+        if (!$devis->date_emission) {
+            $devis->date_emission = now();
+        }
+        if (!$devis->date_validite) {
+            $devis->date_validite = now()->addDays(30);
+        }
+    });
+
+    // 🆕 Génération automatique de la conformité pour les devis
+    static::created(function ($devis) {
+        if (config('facturation.facturation_electronique.active', false)) {
+            try {
+                $devis->genererConformiteElectronique();
+            } catch (\Exception $e) {
+                \Log::warning('Erreur génération conformité électronique devis: ' . $e->getMessage());
             }
-            if (!$devis->date_emission) {
-                $devis->date_emission = now();
-            }
-            if (!$devis->date_validite) {
-                $devis->date_validite = now()->addDays(30);
-            }
-        });
+        }
+    });
+}
+
+
+
+
+
+    // ====================================================
+// MÉTHODES FACTURATION ÉLECTRONIQUE
+// ====================================================
+
+/**
+ * Vérifier si le devis est conforme à la facturation électronique
+ */
+public function estConformeFacturationElectronique(): bool
+{
+    return $this->conforme_loi && 
+           !empty($this->donnees_structurees) && 
+           !empty($this->hash_integrite);
+}
+
+/**
+ * Générer la conformité électronique
+ */
+public function genererConformiteElectronique(): void
+{
+    app(\App\Services\FacturationElectroniqueService::class)->marquerConformeDevis($this);
+}
+
+/**
+ * Vérifier l'intégrité électronique
+ */
+public function verifierIntegriteElectronique(): bool
+{
+    return app(\App\Services\FacturationElectroniqueService::class)->verifierIntegriteDevis($this);
+}
+
+/**
+ * Exporter au format électronique
+ */
+public function exporterFormatElectronique(string $format = 'json'): array
+{
+    return app(\App\Services\FacturationElectroniqueService::class)->exporterFormatElectroniqueDevis($this, $format);
+}
+
+/**
+ * Accesseur pour le statut de conformité
+ */
+public function getStatutConformiteAttribute(): string
+{
+    if (!$this->conforme_loi) {
+        return 'non_conforme';
     }
+    
+    if (!$this->verifierIntegriteElectronique()) {
+        return 'integrite_compromise';
+    }
+    
+    return 'conforme';
+}
+
+/**
+ * Badge CSS pour le statut de conformité
+ */
+public function getStatutConformiteBadgeAttribute(): string
+{
+    return match($this->statut_conformite) {
+        'conforme' => 'bg-green-100 text-green-800',
+        'non_conforme' => 'bg-red-100 text-red-800',
+        'integrite_compromise' => 'bg-orange-100 text-orange-800',
+        default => 'bg-gray-100 text-gray-800',
+    };
+}
 }

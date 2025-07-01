@@ -68,7 +68,8 @@ Route::middleware(['auth'])->group(function () {
     
 Route::post('chantiers/{chantier}/soft-delete', [ChantierController::class, 'softDelete'])->name('chantiers.soft-delete');
 Route::post('chantiers/{chantier}/restore', [ChantierController::class, 'restore'])->name('chantiers.restore');
-    // ✅ RESOURCE ROUTE APRÈS (pour éviter les conflits)
+
+// ✅ RESOURCE ROUTE APRÈS (pour éviter les conflits)
     Route::resource('chantiers', ChantierController::class);
     
     // Routes spécifiques avec paramètres (après le resource)
@@ -109,6 +110,12 @@ Route::post('chantiers/{chantier}/restore', [ChantierController::class, 'restore
         // PDF
         Route::get('devis/{devis}/pdf', [DevisController::class, 'downloadPdf'])->name('chantiers.devis.pdf');
         Route::get('devis/{devis}/preview', [DevisController::class, 'previewPdf'])->name('chantiers.devis.preview');
+
+            // 🆕 Nouvelles routes pour la conformité électronique
+    Route::post('devis/{devis}/generer-conformite', [DevisController::class, 'genererConformite'])->name('chantiers.devis.generer-conformite');
+    Route::get('devis/{devis}/export-electronique/{format}', [DevisController::class, 'exportElectronique'])->name('chantiers.devis.export-electronique');
+    Route::get('devis/{devis}/verifier-integrite', [DevisController::class, 'verifierIntegrite'])->name('chantiers.devis.verifier-integrite');
+
     });
 
     // Routes pour les factures (liées aux chantiers)
@@ -132,6 +139,12 @@ Route::post('chantiers/{chantier}/restore', [ChantierController::class, 'restore
         Route::get('factures/{facture}/pdf', [FactureController::class, 'downloadPdf'])->name('chantiers.factures.pdf');
         Route::get('factures/{facture}/preview', [FactureController::class, 'previewPdf'])->name('chantiers.factures.preview');
         Route::get('factures/{facture}/paiements', [FactureController::class, 'recapitulatifPaiements'])->name('chantiers.factures.paiements');
+
+            // Nouvelles routes pour la conformité électronique des factures
+    Route::post('factures/{facture}/generer-conformite', [FactureController::class, 'genererConformite'])->name('chantiers.factures.generer-conformite');
+    Route::get('factures/{facture}/export-electronique/{format}', [FactureController::class, 'exportElectronique'])->name('chantiers.factures.export-electronique');
+    Route::get('factures/{facture}/verifier-integrite', [FactureController::class, 'verifierIntegrite'])->name('chantiers.factures.verifier-integrite');
+
     });
     
     // Gestion des documents
