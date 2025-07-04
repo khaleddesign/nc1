@@ -74,7 +74,7 @@
                                          x-transition:leave-end="transform opacity-0 scale-95"
                                          class="origin-top-left absolute left-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none">
                                         <div class="py-1">
-                                            <a href="{{ route('devis.index') }}" class="dropdown-item flex items-center group">
+                                            <a href="{{ route('devis.global.index') }}" class="dropdown-item flex items-center group">
                                                 <svg class="w-4 h-4 mr-3 text-gray-400 group-hover:text-blue-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621 0 1.125-.504 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                                                 </svg>
@@ -83,7 +83,7 @@
                                                     <div class="text-xs text-gray-500">Gérer tous les devis</div>
                                                 </div>
                                             </a>
-                                            <a href="{{ route('factures.index') }}" class="dropdown-item flex items-center group">
+                                            <a href="{{ route('factures.global.index') }}" class="dropdown-item flex items-center group">
                                                 <svg class="w-4 h-4 mr-3 text-gray-400 group-hover:text-green-500" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M16.5 18.75h-9A2.25 2.25 0 015.25 16.5v-10.5A2.25 2.25 0 017.5 3.75h1.5m0 0h6m-6 0v1.5m6-1.5v1.5m6 1.5v10.5a2.25 2.25 0 01-2.25 2.25H13.5m-6-0h6m-6 3h6" />
                                                 </svg>
@@ -255,13 +255,13 @@
                         @can('commercial-or-admin')
                         <div class="pl-3 pr-4 py-2">
                             <div class="text-sm font-medium text-gray-500 mb-2">Gestion</div>
-                            <a href="{{ route('devis.index') }}" class="block pl-4 pr-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 flex items-center transition-colors duration-200">
+                            <a href="{{ route('devis.global.index') }}" class="block pl-4 pr-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 flex items-center transition-colors duration-200">
                                 <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M16.5 18.75h-9A2.25 2.25 0 015.25 16.5v-10.5A2.25 2.25 0 017.5 3.75h1.5m0 0h6m-6 0v1.5m6-1.5v1.5m6 1.5v10.5a2.25 2.25 0 01-2.25 2.25H13.5m-6-0h6m-6 3h6" />
                                 </svg>
                                 Devis
                             </a>
-                            <a href="{{ route('factures.index') }}" class="block pl-4 pr-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 flex items-center transition-colors duration-200">
+                            <a href="{{ route('factures.global.index') }}" class="block pl-4 pr-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-50 flex items-center transition-colors duration-200">
                                 <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M16.5 18.75h-9A2.25 2.25 0 015.25 16.5v-10.5A2.25 2.25 0 017.5 3.75h1.5m0 0h6m-6 0v1.5m6-1.5v1.5m6 1.5v10.5a2.25 2.25 0 01-2.25 2.25H13.5m-6-0h6m-6 3h6" />
                                 </svg>

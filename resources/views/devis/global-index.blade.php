@@ -42,7 +42,7 @@
                 {{-- 🆕 BOUTON CORRIGÉ --}}
                 @can('commercial-or-admin')
                 <div class="mt-4 flex md:mt-0 md:ml-4">
-                    <a href="{{ route('devis.create') }}" class="btn btn-primary">
+                    <a href="{{ route('devis.global.create') }}" class="btn btn-primary">
                         <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                         </svg>
@@ -57,7 +57,7 @@
     {{-- Filtres et recherche - INCHANGÉ --}}
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <form method="GET" action="{{ route('devis.index') }}" class="space-y-4">
+            <form method="GET" action="{{ route('devis.global.index') }}" class="space-y-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {{-- Recherche --}}
                     <div>
@@ -111,7 +111,7 @@
                             </svg>
                             Filtrer
                         </button>
-                        <a href="{{ route('devis.index') }}" class="btn btn-outline">Réinitialiser</a>
+                        <a href="{{ route('devis.global.index') }}" class="btn btn-outline">Réinitialiser</a>
                     </div>
                     
                     {{-- Tri --}}

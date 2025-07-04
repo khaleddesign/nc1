@@ -176,19 +176,29 @@ class DevisController extends Controller
     {
         $this->checkDevisCreationPermission();
         $validated = $this->validateGlobalDevisData($request);
-
+        
         DB::beginTransaction();
         try {
-            $devis = $this->createGlobalDevisWithLines($validated, $request);
+            // Déterminer le type de devis
+            $type_devis = $request->input('type_devis', 'nouveau_prospect');
+            
+            if ($type_devis === 'nouveau_prospect') {
+                $devis = $this->createProspectDevis($validated, $request);
+            } else {
+                $devis = $this->createGlobalDevisWithLines($validated, $request);
+            }
+            
             DB::commit();
-
-            $message = $request->input('action') === 'save_and_send'
-                ? 'Devis créé et envoyé avec succès.'
-                : 'Devis créé avec succès.';
-
+            
+            $message = match($request->input('action')) {
+                'save_and_send' => 'Devis créé et envoyé avec succès.',
+                default => 'Devis créé avec succès.'
+            };
+            
             return redirect()
                 ->route('devis.show', $devis)
                 ->with('success', $message);
+                
         } catch (\Exception $e) {
             DB::rollback();
             return back()
@@ -551,11 +561,11 @@ class DevisController extends Controller
 
     private function validateGlobalDevisData(Request $request)
     {
-        return $request->validate([
+        $rules = [
             'type_devis' => 'required|in:nouveau_prospect,chantier_existant',
             'chantier_id' => 'nullable|required_if:type_devis,chantier_existant|exists:chantiers,id',
             'client_nom' => 'required_if:type_devis,nouveau_prospect|string|max:255',
-            'client_email' => 'required_if:type_devis,nouveau_prospect|email|unique:users,email',
+            'client_email' => 'required_if:type_devis,nouveau_prospect|email',
             'client_telephone' => 'nullable|string|max:20',
             'client_adresse' => 'nullable|string',
             'titre' => 'required|string|max:255',
@@ -566,6 +576,7 @@ class DevisController extends Controller
             'modalites_paiement' => 'nullable|string',
             'conditions_generales' => 'nullable|string',
             'notes_internes' => 'nullable|string',
+            'reference_externe' => 'nullable|string|max:100',
             'lignes' => 'required|array|min:1',
             'lignes.*.designation' => 'required|string|max:255',
             'lignes.*.description' => 'nullable|string',
@@ -575,7 +586,14 @@ class DevisController extends Controller
             'lignes.*.taux_tva' => 'nullable|numeric|min:0|max:100',
             'lignes.*.remise_pourcentage' => 'nullable|numeric|min:0|max:100',
             'lignes.*.categorie' => 'nullable|string|max:100',
-        ]);
+        ];
+        
+        // Validation conditionnelle pour les prospects
+        if ($request->input('type_devis') === 'nouveau_prospect') {
+            $rules['client_email'] .= '|unique:users,email';
+        }
+        
+        return $request->validate($rules);
     }
 
     private function createDevisWithLines(Chantier $chantier, array $validated)
@@ -909,4 +927,208 @@ class DevisController extends Controller
             }
         }
     }
+
+    // ====================================================
+    // GESTION DES DEVIS PROSPECTS
+    // ====================================================
+
+    /**
+     * Vue des devis prospects uniquement
+     */
+    public function prospects(Request $request)
+    {
+        $this->checkDevisAccessPermission();
+        
+        $query = Devis::prospects()->with(['commercial']);
+        
+        // Filtrage selon le rôle
+        if (Auth::user()->isCommercial()) {
+            $query->where('commercial_id', Auth::id());
+        }
+        
+        // Filtres spécifiques aux prospects
+        if ($request->filled('statut_prospect')) {
+            $query->where('statut_prospect', $request->statut_prospect);
+        }
+        
+        if ($request->filled('commercial_id') && Auth::user()->isAdmin()) {
+            $query->where('commercial_id', $request->commercial_id);
+        }
+        
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('titre', 'like', "%{$search}%")
+                  ->orWhere('numero', 'like', "%{$search}%")
+                  ->orWhereJsonContains('client_info->nom', $search)
+                  ->orWhereJsonContains('client_info->email', $search);
+            });
+        }
+        
+        $devis = $query->orderBy('created_at', 'desc')->paginate(20)->withQueryString();
+        
+        // Statistiques prospects
+        $baseQuery = Auth::user()->isAdmin() ? 
+            Devis::prospects() : 
+            Devis::prospects()->where('commercial_id', Auth::id());
+        
+        $stats = [
+            'total' => $baseQuery->count(),
+            'brouillon' => (clone $baseQuery)->where('statut_prospect', 'brouillon')->count(),
+            'envoye' => (clone $baseQuery)->where('statut_prospect', 'envoye')->count(),
+            'negocie' => (clone $baseQuery)->where('statut_prospect', 'negocie')->count(),
+            'accepte' => (clone $baseQuery)->where('statut_prospect', 'accepte')->count(),
+            'convertibles' => (clone $baseQuery)->convertibles()->count(),
+            'refuse' => (clone $baseQuery)->where('statut_prospect', 'refuse')->count(),
+        ];
+        
+        $commerciaux = Auth::user()->isAdmin() ? 
+            User::where('role', 'commercial')->get() : 
+            collect();
+        
+        return view('devis.prospects', compact('devis', 'stats', 'commerciaux'));
+    }
+
+    /**
+     * Convertir un devis prospect en chantier
+     */
+    public function convertToChantier(Request $request, Devis $devis)
+    {
+        // Vérifications
+        if (!$devis->peutEtreConverti()) {
+            return back()->with('error', 'Ce devis ne peut pas être converti en chantier.');
+        }
+        
+        $this->authorize('convertToChantier', $devis);
+        
+        $validated = $request->validate([
+            'titre_chantier' => 'required|string|max:255',
+            'description_chantier' => 'nullable|string',
+            'date_debut' => 'required|date|after_or_equal:today',
+            'date_fin_prevue' => 'required|date|after:date_debut',
+            'notes_chantier' => 'nullable|string',
+        ]);
+        
+        try {
+            $chantier = $devis->convertirEnChantier([
+                'titre' => $validated['titre_chantier'],
+                'description' => $validated['description_chantier'],
+                'date_debut' => $validated['date_debut'],
+                'date_fin_prevue' => $validated['date_fin_prevue'],
+                'notes' => $validated['notes_chantier'],
+            ]);
+            
+            // Notification
+            Notification::creerNotification(
+                $chantier->client_id,
+                $chantier->id,
+                'nouveau_chantier',
+                'Nouveau chantier créé',
+                "Votre devis '{$devis->numero}' a été converti en chantier '{$chantier->titre}'."
+            );
+            
+            return redirect()
+                ->route('chantiers.show', $chantier)
+                ->with('success', "Devis '{$devis->numero}' converti en chantier avec succès !");
+                
+        } catch (\Exception $e) {
+            return back()
+                ->with('error', 'Erreur lors de la conversion : ' . $e->getMessage())
+                ->withInput();
+        }
+    }
+
+    /**
+     * Ajouter une version de négociation à un prospect
+     */
+    public function ajouterVersionNegociation(Request $request, Devis $devis)
+    {
+        if (!$devis->isProspect()) {
+            return back()->with('error', 'Cette action n\'est disponible que pour les devis prospects.');
+        }
+        
+        $this->authorize('update', $devis);
+        
+        $validated = $request->validate([
+            'motif' => 'required|string|max:255',
+            'modifications' => 'nullable|array',
+            'modifications.*' => 'string',
+        ]);
+        
+        $devis->ajouterVersionNegociation(
+            $validated['motif'], 
+            $validated['modifications'] ?? []
+        );
+        
+        return back()->with('success', 'Version de négociation ajoutée avec succès.');
+    }
+
+    /**
+     * Afficher l'historique de négociation d'un prospect
+     */
+    public function historiqueNegociation(Devis $devis)
+    {
+        if (!$devis->isProspect()) {
+            abort(404);
+        }
+        
+        $this->authorize('view', $devis);
+        
+        $historique = $devis->historique_negociation ?? [];
+        
+        return view('devis.historique-negociation', compact('devis', 'historique'));
+    }
+
+    /**
+     * Vue du formulaire de conversion prospect → chantier
+     */
+    public function showConversionForm(Devis $devis)
+    {
+        if (!$devis->peutEtreConverti()) {
+            return back()->with('error', 'Ce devis ne peut pas être converti.');
+        }
+        
+        $this->authorize('convertToChantier', $devis);
+        
+        return view('devis.convert-to-chantier', compact('devis'));
+    }
+
+    /**
+     * Créer un devis prospect
+     */
+    private function createProspectDevis(array $validated, Request $request): Devis
+    {
+        $devis = Devis::create([
+            'commercial_id' => Auth::id(),
+            'type_devis' => Devis::TYPE_PROSPECT,
+            'statut_prospect' => Devis::STATUT_PROSPECT_BROUILLON,
+            'titre' => $validated['titre'],
+            'description' => $validated['description'],
+            'date_validite' => $validated['date_validite'],
+            'taux_tva' => $validated['taux_tva'],
+            'delai_realisation' => $validated['delai_realisation'],
+            'modalites_paiement' => $validated['modalites_paiement'],
+            'conditions_generales' => $validated['conditions_generales'],
+            'notes_internes' => $validated['notes_internes'],
+            'reference_externe' => $validated['reference_externe'] ?? null,
+            'client_info' => [
+                'nom' => $validated['client_nom'],
+                'email' => $validated['client_email'],
+                'telephone' => $validated['client_telephone'] ?? null,
+                'adresse' => $validated['client_adresse'] ?? null,
+            ],
+        ]);
+        
+        $this->createLignesForDevis($devis, $validated['lignes'], $validated['taux_tva']);
+        $devis->calculerMontants();
+        
+        if ($request->input('action') === 'save_and_send') {
+            $devis->marquerEnvoye();
+            
+            // TODO: Envoyer email au prospect
+        }
+        
+        return $devis;
+    }
+
 }

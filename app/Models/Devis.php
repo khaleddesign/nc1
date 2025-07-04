@@ -1,4 +1,5 @@
 <?php
+// app/Models/Devis.php - VERSION ENRICHIE
 
 namespace App\Models;
 
@@ -12,17 +13,18 @@ class Devis extends Model
 
     protected $table = 'devis';
 
-  protected $fillable = [
-    'numero', 'chantier_id', 'commercial_id', 'titre', 'description',
-    'statut', 'client_info', 'date_emission', 'date_validite',
-    'date_envoi', 'date_reponse', 'montant_ht', 'montant_tva',
-    'montant_ttc', 'taux_tva', 'conditions_generales',
-    'delai_realisation', 'modalites_paiement', 'signature_client',
-    'signed_at', 'signature_ip', 'facture_id', 'converted_at',
-    'notes_internes',
-    'donnees_structurees', 'format_electronique', 'hash_integrite',
-    'conforme_loi', 'date_transmission', 'numero_chronologique'
-];
+    protected $fillable = [
+        'numero', 'chantier_id', 'commercial_id', 'titre', 'description',
+        'statut', 'type_devis', 'statut_prospect', 'client_info', 
+        'date_emission', 'date_validite', 'date_envoi', 'date_reponse', 
+        'montant_ht', 'montant_tva', 'montant_ttc', 'taux_tva', 
+        'conditions_generales', 'delai_realisation', 'modalites_paiement', 
+        'signature_client', 'signed_at', 'signature_ip', 'facture_id', 
+        'converted_at', 'notes_internes', 'chantier_converti_id', 
+        'date_conversion', 'historique_negociation', 'reference_externe',
+        'donnees_structurees', 'format_electronique', 'hash_integrite',
+        'conforme_loi', 'date_transmission', 'numero_chronologique'
+    ];
 
     protected $casts = [
         'client_info' => 'array',
@@ -32,18 +34,33 @@ class Devis extends Model
         'date_reponse' => 'datetime',
         'signed_at' => 'datetime',
         'converted_at' => 'datetime',
+        'date_conversion' => 'datetime',
         'montant_ht' => 'decimal:2',
         'montant_tva' => 'decimal:2',
         'montant_ttc' => 'decimal:2',
         'taux_tva' => 'decimal:2',
         'delai_realisation' => 'integer',
         'donnees_structurees' => 'array',
-    'conforme_loi' => 'boolean',
-    'date_transmission' => 'datetime',
+        'historique_negociation' => 'array',
+        'conforme_loi' => 'boolean',
+        'date_transmission' => 'datetime',
     ];
 
-    // Flag pour éviter la récursion
-    protected static $calculatingTotals = false;
+    // ====================================================
+    // CONSTANTES POUR LES FLUX
+    // ====================================================
+    
+    const TYPE_PROSPECT = 'prospect';
+    const TYPE_CHANTIER = 'chantier';
+    const TYPE_CONVERTI = 'converti';
+    
+    const STATUT_PROSPECT_BROUILLON = 'brouillon';
+    const STATUT_PROSPECT_ENVOYE = 'envoye';
+    const STATUT_PROSPECT_NEGOCIE = 'negocie';
+    const STATUT_PROSPECT_ACCEPTE = 'accepte';
+    const STATUT_PROSPECT_REFUSE = 'refuse';
+    const STATUT_PROSPECT_EXPIRE = 'expire';
+    const STATUT_PROSPECT_CONVERTI = 'converti';
 
     // ====================================================
     // RELATIONS
@@ -69,28 +86,245 @@ class Devis extends Model
         return $this->belongsTo(Facture::class);
     }
 
+    /**
+     * Chantier créé lors de la conversion (pour prospects)
+     */
+    public function chantierConverti()
+    {
+        return $this->belongsTo(Chantier::class, 'chantier_converti_id');
+    }
+
     // ====================================================
-    // MÉTHODES MÉTIER
+    // SCOPES POUR LES FLUX
     // ====================================================
 
     /**
-     * Calculer les montants du devis
+     * Scope pour les devis prospects uniquement
      */
-    public function calculerMontants(): void
+    public function scopeProspects($query)
     {
-        // Éviter la récursion
-        if (static::$calculatingTotals) {
+        return $query->where('type_devis', self::TYPE_PROSPECT);
+    }
+
+    /**
+     * Scope pour les devis liés à des chantiers
+     */
+    public function scopeChantiers($query)
+    {
+        return $query->where('type_devis', self::TYPE_CHANTIER);
+    }
+
+    /**
+     * Scope pour les devis convertis
+     */
+    public function scopeConvertis($query)
+    {
+        return $query->where('type_devis', self::TYPE_CONVERTI);
+    }
+
+    /**
+     * Scope pour les prospects en cours de négociation
+     */
+    public function scopeEnNegociation($query)
+    {
+        return $query->prospects()
+                    ->whereIn('statut_prospect', [
+                        self::STATUT_PROSPECT_ENVOYE,
+                        self::STATUT_PROSPECT_NEGOCIE
+                    ]);
+    }
+
+    /**
+     * Scope pour les prospects convertibles
+     */
+    public function scopeConvertibles($query)
+    {
+        return $query->prospects()
+                    ->where('statut_prospect', self::STATUT_PROSPECT_ACCEPTE)
+                    ->whereNull('chantier_converti_id');
+    }
+
+    // ====================================================
+    // MÉTHODES MÉTIER POUR LES FLUX
+    // ====================================================
+
+    /**
+     * Vérifier si c'est un devis prospect
+     */
+    public function isProspect(): bool
+    {
+        return $this->type_devis === self::TYPE_PROSPECT;
+    }
+
+    /**
+     * Vérifier si c'est un devis lié à un chantier
+     */
+    public function isChantier(): bool
+    {
+        return $this->type_devis === self::TYPE_CHANTIER;
+    }
+
+    /**
+     * Vérifier si c'est un prospect converti
+     */
+    public function isConverti(): bool
+    {
+        return $this->type_devis === self::TYPE_CONVERTI;
+    }
+
+    /**
+     * Vérifier si le prospect peut être converti en chantier
+     */
+    public function peutEtreConverti(): bool
+    {
+        return $this->isProspect() && 
+               $this->statut_prospect === self::STATUT_PROSPECT_ACCEPTE &&
+               !$this->chantier_converti_id;
+    }
+
+    /**
+     * Convertir un devis prospect en chantier
+     */
+    public function convertirEnChantier(array $donnees_chantier): Chantier
+    {
+        if (!$this->peutEtreConverti()) {
+            throw new \Exception('Ce devis ne peut pas être converti en chantier');
+        }
+
+        DB::beginTransaction();
+        
+        try {
+            // Créer le chantier
+            $chantier = Chantier::create([
+                'titre' => $donnees_chantier['titre'] ?? $this->titre,
+                'description' => $donnees_chantier['description'] ?? $this->description,
+                'client_id' => $this->getClientId(),
+                'commercial_id' => $this->commercial_id,
+                'statut' => 'planifie',
+                'date_debut' => $donnees_chantier['date_debut'] ?? now()->addDays(7),
+                'date_fin_prevue' => $donnees_chantier['date_fin_prevue'] ?? now()->addDays(30),
+                'budget' => $this->montant_ttc,
+                'notes' => "Chantier créé à partir du devis prospect {$this->numero}",
+            ]);
+
+            // Mettre à jour le devis prospect
+            $this->update([
+                'type_devis' => self::TYPE_CONVERTI,
+                'statut_prospect' => self::STATUT_PROSPECT_CONVERTI,
+                'chantier_converti_id' => $chantier->id,
+                'date_conversion' => now(),
+            ]);
+
+            // Créer un nouveau devis lié au chantier (copie du prospect)
+            $devis_chantier = $this->replicate([
+                'id', 'numero', 'created_at', 'updated_at', 'type_devis',
+                'statut_prospect', 'chantier_converti_id', 'date_conversion'
+            ]);
+            
+            $devis_chantier->fill([
+                'chantier_id' => $chantier->id,
+                'type_devis' => self::TYPE_CHANTIER,
+                'statut' => 'accepte',
+                'statut_prospect' => null,
+                'titre' => $this->titre . ' (Chantier)',
+            ]);
+            
+            $devis_chantier->save();
+
+            // Copier les lignes vers le nouveau devis
+            foreach ($this->lignes as $ligne) {
+                $nouvelle_ligne = $ligne->replicate();
+                $devis_chantier->lignes()->save($nouvelle_ligne);
+            }
+
+            $devis_chantier->calculerMontants();
+
+            DB::commit();
+            
+            return $chantier;
+
+        } catch (\Exception $e) {
+            DB::rollback();
+            throw $e;
+        }
+    }
+
+    /**
+     * Ajouter une version à l'historique de négociation
+     */
+    public function ajouterVersionNegociation(string $motif, array $modifications = []): void
+    {
+        if (!$this->isProspect()) {
             return;
         }
 
-        static::$calculatingTotals = true;
+        $historique = $this->historique_negociation ?? [];
+        
+        $historique[] = [
+            'version' => count($historique) + 1,
+            'date' => now()->toISOString(),
+            'motif' => $motif,
+            'modifications' => $modifications,
+            'montant_ht' => $this->montant_ht,
+            'montant_ttc' => $this->montant_ttc,
+            'utilisateur' => auth()->user()?->name,
+        ];
+
+        $this->update([
+            'historique_negociation' => $historique,
+            'statut_prospect' => self::STATUT_PROSPECT_NEGOCIE
+        ]);
+    }
+
+    /**
+     * Obtenir l'ID du client (depuis client_info ou relation)
+     */
+    private function getClientId(): int
+    {
+        // Si le devis est lié à un chantier, récupérer le client du chantier
+        if ($this->chantier_id) {
+            return $this->chantier->client_id;
+        }
+
+        // Sinon, chercher ou créer le client depuis client_info
+        if (isset($this->client_info['email'])) {
+            $client = User::firstOrCreate(
+                ['email' => $this->client_info['email']],
+                [
+                    'name' => $this->client_info['nom'],
+                    'role' => 'client',
+                    'telephone' => $this->client_info['telephone'] ?? null,
+                    'adresse' => $this->client_info['adresse'] ?? null,
+                    'password' => bcrypt('temp_password_' . time()),
+                    'email_verified_at' => now(),
+                ]
+            );
+            
+            return $client->id;
+        }
+
+        throw new \Exception('Impossible de déterminer le client pour ce devis');
+    }
+
+    // ====================================================
+    // MÉTHODES MÉTIER EXISTANTES (conservées)
+    // ====================================================
+
+    public function calculerMontants(): void
+    {
+        static $calculatingTotals = false;
+
+        if ($calculatingTotals) {
+            return;
+        }
+
+        $calculatingTotals = true;
 
         try {
             $montantHT = $this->lignes->sum('montant_ht');
             $montantTVA = $this->lignes->sum('montant_tva');
             $montantTTC = $montantHT + $montantTVA;
 
-            // Mise à jour directe sans trigger d'événements
             DB::table('devis')
                 ->where('id', $this->id)
                 ->update([
@@ -100,19 +334,15 @@ class Devis extends Model
                     'updated_at' => now(),
                 ]);
 
-            // Mettre à jour l'instance actuelle
             $this->montant_ht = $montantHT;
             $this->montant_tva = $montantTVA;
             $this->montant_ttc = $montantTTC;
 
         } finally {
-            static::$calculatingTotals = false;
+            $calculatingTotals = false;
         }
     }
 
-    /**
-     * Générer un numéro de devis
-     */
     public static function genererNumero(): string
     {
         $annee = date('Y');
@@ -130,246 +360,229 @@ class Devis extends Model
         return sprintf('DEV-%s-%03d', $annee, $numero);
     }
 
-    /**
-     * Vérifier si le devis est expiré
-     */
     public function isExpire(): bool
     {
-        return $this->date_validite->isPast() && $this->statut === 'envoye';
+        return $this->date_validite->isPast() && 
+               in_array($this->getStatutActuel(), ['envoye', 'negocie']);
     }
 
-    /**
-     * Vérifier si le devis peut être modifié
-     */
     public function peutEtreModifie(): bool
     {
-        return in_array($this->statut, ['brouillon', 'envoye']) && 
-               !$this->facture_id;
+        $statut = $this->getStatutActuel();
+        
+        if ($this->isProspect()) {
+            return in_array($statut, ['brouillon', 'envoye', 'negocie']) && !$this->chantier_converti_id;
+        }
+        
+        return in_array($statut, ['brouillon', 'envoye']) && !$this->facture_id;
     }
 
-    /**
-     * Vérifier si le devis peut être accepté
-     */
     public function peutEtreAccepte(): bool
     {
-        return $this->statut === 'envoye' && !$this->isExpire();
+        $statut = $this->getStatutActuel();
+        
+        if ($this->isProspect()) {
+            return in_array($statut, ['envoye', 'negocie']) && !$this->isExpire();
+        }
+        
+        return $statut === 'envoye' && !$this->isExpire();
     }
 
     /**
-     * Vérifier si le devis peut être converti en facture
+     * Obtenir le statut actuel selon le type de devis
      */
-    public function peutEtreConverti(): bool
+    public function getStatutActuel(): string
     {
-        return $this->statut === 'accepte' && !$this->facture_id;
+        return $this->isProspect() ? $this->statut_prospect : $this->statut;
     }
 
-    /**
-     * Accepter le devis
-     */
     public function accepter(): void
     {
-        $this->update([
-            'statut' => 'accepte',
-            'date_reponse' => now(),
-        ]);
+        if ($this->isProspect()) {
+            $this->update([
+                'statut_prospect' => self::STATUT_PROSPECT_ACCEPTE,
+                'date_reponse' => now(),
+            ]);
+        } else {
+            $this->update([
+                'statut' => 'accepte',
+                'date_reponse' => now(),
+            ]);
+        }
     }
 
-    /**
-     * Refuser le devis
-     */
     public function refuser(): void
     {
-        $this->update([
-            'statut' => 'refuse',
-            'date_reponse' => now(),
-        ]);
+        if ($this->isProspect()) {
+            $this->update([
+                'statut_prospect' => self::STATUT_PROSPECT_REFUSE,
+                'date_reponse' => now(),
+            ]);
+        } else {
+            $this->update([
+                'statut' => 'refuse',
+                'date_reponse' => now(),
+            ]);
+        }
     }
 
-    /**
-     * Marquer le devis comme envoyé
-     */
     public function marquerEnvoye(): void
     {
-        $this->update([
-            'statut' => 'envoye',
-            'date_envoi' => now(),
-        ]);
-    }
-
-    /**
-     * Signer électroniquement le devis
-     */
-    public function signerElectroniquement(string $signature, string $ip): void
-    {
-        $this->update([
-            'signature_client' => $signature,
-            'signature_ip' => $ip,
-            'signed_at' => now(),
-        ]);
+        if ($this->isProspect()) {
+            $this->update([
+                'statut_prospect' => self::STATUT_PROSPECT_ENVOYE,
+                'date_envoi' => now(),
+            ]);
+        } else {
+            $this->update([
+                'statut' => 'envoye',
+                'date_envoi' => now(),
+            ]);
+        }
     }
 
     // ====================================================
-    // ACCESSEURS (Méthodes pour les vues)
+    // ACCESSEURS AMÉLIORÉS
     // ====================================================
 
-    /**
-     * 🔧 CORRIGÉ : Méthode normale au lieu d'attribut
-     */
     public function getStatutBadgeClass(): string
     {
-        return match ($this->statut) {
-            'brouillon' => 'badge-secondary',
-            'envoye' => 'badge-info', 
-            'accepte' => 'badge-success',
-            'refuse' => 'badge-danger',
-            'expire' => 'badge-warning',
-            default => 'badge-secondary',
+        $statut = $this->getStatutActuel();
+        
+        return match ($statut) {
+            'brouillon' => 'bg-gray-100 text-gray-800',
+            'envoye' => 'bg-blue-100 text-blue-800',
+            'negocie' => 'bg-yellow-100 text-yellow-800',
+            'accepte' => 'bg-green-100 text-green-800',
+            'refuse' => 'bg-red-100 text-red-800',
+            'expire' => 'bg-orange-100 text-orange-800',
+            'converti' => 'bg-purple-100 text-purple-800',
+            default => 'bg-gray-100 text-gray-800',
         };
     }
 
-    /**
-     * 🔧 CORRIGÉ : Méthode normale au lieu d'attribut
-     */
     public function getStatutTexte(): string
     {
-        return match ($this->statut) {
+        $statut = $this->getStatutActuel();
+        
+        $textes = [
             'brouillon' => 'Brouillon',
             'envoye' => 'Envoyé',
+            'negocie' => 'En négociation',
             'accepte' => 'Accepté',
             'refuse' => 'Refusé',
             'expire' => 'Expiré',
-            default => 'Inconnu',
-        };
+            'converti' => 'Converti en chantier',
+        ];
+        
+        return $textes[$statut] ?? 'Inconnu';
     }
 
-    /**
-     * 🔧 CORRIGÉ : Accesseur Laravel classique
-     */
     public function getClientNomAttribute(): string
     {
         return $this->client_info['nom'] ?? $this->chantier?->client?->name ?? 'Client inconnu';
     }
 
-    // ====================================================
-    // SCOPES
-    // ====================================================
-
-    public function scopeEnCours($query)
+    /**
+     * Obtenir le type de devis avec emoji pour l'affichage
+     */
+    public function getTypeDevisTexte(): string
     {
-        return $query->whereIn('statut', ['brouillon', 'envoye']);
-    }
-
-    public function scopeExpires($query)
-    {
-        return $query->where('statut', 'envoye')
-            ->where('date_validite', '<', now());
-    }
-
-    public function scopeAcceptes($query)
-    {
-        return $query->where('statut', 'accepte');
+        return match ($this->type_devis) {
+            self::TYPE_PROSPECT => '🎯 Prospect',
+            self::TYPE_CHANTIER => '🏗️ Chantier',
+            self::TYPE_CONVERTI => '✅ Converti',
+            default => '❓ Inconnu',
+        };
     }
 
     // ====================================================
     // ÉVÉNEMENTS
     // ====================================================
 
- protected static function boot()
-{
-    parent::boot();
+    protected static function boot()
+    {
+        parent::boot();
 
-    static::creating(function ($devis) {
-        if (!$devis->numero) {
-            $devis->numero = static::genererNumero();
-        }
-        if (!$devis->date_emission) {
-            $devis->date_emission = now();
-        }
-        if (!$devis->date_validite) {
-            $devis->date_validite = now()->addDays(30);
-        }
-    });
-
-    // 🆕 Génération automatique de la conformité pour les devis
-    static::created(function ($devis) {
-        if (config('facturation.facturation_electronique.active', false)) {
-            try {
-                $devis->genererConformiteElectronique();
-            } catch (\Exception $e) {
-                \Log::warning('Erreur génération conformité électronique devis: ' . $e->getMessage());
+        static::creating(function ($devis) {
+            if (!$devis->numero) {
+                $devis->numero = static::genererNumero();
             }
-        }
-    });
-}
+            if (!$devis->date_emission) {
+                $devis->date_emission = now();
+            }
+            if (!$devis->date_validite) {
+                $devis->date_validite = now()->addDays(30);
+            }
+            
+            // Définir le type par défaut selon la présence d'un chantier
+            if (!$devis->type_devis) {
+                $devis->type_devis = $devis->chantier_id ? self::TYPE_CHANTIER : self::TYPE_PROSPECT;
+            }
+            
+            // Définir le statut initial selon le type
+            if ($devis->isProspect() && !$devis->statut_prospect) {
+                $devis->statut_prospect = self::STATUT_PROSPECT_BROUILLON;
+            }
+        });
 
-
-
-
+        static::created(function ($devis) {
+            if (config('facturation.facturation_electronique.active', false)) {
+                try {
+                    $devis->genererConformiteElectronique();
+                } catch (\Exception $e) {
+                    \Log::warning('Erreur génération conformité électronique devis: ' . $e->getMessage());
+                }
+            }
+        });
+    }
 
     // ====================================================
-// MÉTHODES FACTURATION ÉLECTRONIQUE
-// ====================================================
+    // MÉTHODES FACTURATION ÉLECTRONIQUE (conservées)
+    // ====================================================
 
-/**
- * Vérifier si le devis est conforme à la facturation électronique
- */
-public function estConformeFacturationElectronique(): bool
-{
-    return $this->conforme_loi && 
-           !empty($this->donnees_structurees) && 
-           !empty($this->hash_integrite);
-}
-
-/**
- * Générer la conformité électronique
- */
-public function genererConformiteElectronique(): void
-{
-    app(\App\Services\FacturationElectroniqueService::class)->marquerConformeDevis($this);
-}
-
-/**
- * Vérifier l'intégrité électronique
- */
-public function verifierIntegriteElectronique(): bool
-{
-    return app(\App\Services\FacturationElectroniqueService::class)->verifierIntegriteDevis($this);
-}
-
-/**
- * Exporter au format électronique
- */
-public function exporterFormatElectronique(string $format = 'json'): array
-{
-    return app(\App\Services\FacturationElectroniqueService::class)->exporterFormatElectroniqueDevis($this, $format);
-}
-
-/**
- * Accesseur pour le statut de conformité
- */
-public function getStatutConformiteAttribute(): string
-{
-    if (!$this->conforme_loi) {
-        return 'non_conforme';
+    public function estConformeFacturationElectronique(): bool
+    {
+        return $this->conforme_loi && 
+               !empty($this->donnees_structurees) && 
+               !empty($this->hash_integrite);
     }
-    
-    if (!$this->verifierIntegriteElectronique()) {
-        return 'integrite_compromise';
-    }
-    
-    return 'conforme';
-}
 
-/**
- * Badge CSS pour le statut de conformité
- */
-public function getStatutConformiteBadgeAttribute(): string
-{
-    return match($this->statut_conformite) {
-        'conforme' => 'bg-green-100 text-green-800',
-        'non_conforme' => 'bg-red-100 text-red-800',
-        'integrite_compromise' => 'bg-orange-100 text-orange-800',
-        default => 'bg-gray-100 text-gray-800',
-    };
-}
+    public function genererConformiteElectronique(): void
+    {
+        app(\App\Services\FacturationElectroniqueService::class)->marquerConformeDevis($this);
+    }
+
+    public function verifierIntegriteElectronique(): bool
+    {
+        return app(\App\Services\FacturationElectroniqueService::class)->verifierIntegriteDevis($this);
+    }
+
+    public function exporterFormatElectronique(string $format = 'json'): array
+    {
+        return app(\App\Services\FacturationElectroniqueService::class)->exporterFormatElectroniqueDevis($this, $format);
+    }
+
+    public function getStatutConformiteAttribute(): string
+    {
+        if (!$this->conforme_loi) {
+            return 'non_conforme';
+        }
+        
+        if (!$this->verifierIntegriteElectronique()) {
+            return 'integrite_compromise';
+        }
+        
+        return 'conforme';
+    }
+
+    public function getStatutConformiteBadgeAttribute(): string
+    {
+        return match($this->statut_conformite) {
+            'conforme' => 'bg-green-100 text-green-800',
+            'non_conforme' => 'bg-red-100 text-red-800',
+            'integrite_compromise' => 'bg-orange-100 text-orange-800',
+            default => 'bg-gray-100 text-gray-800',
+        };
+    }
 }

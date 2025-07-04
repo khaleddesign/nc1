@@ -81,7 +81,7 @@
     {{-- Filtres et recherche --}}
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <form method="GET" action="{{ route('factures.index') }}" class="space-y-4">
+            <form method="GET" action="{{ route('factures.global.index') }}" class="space-y-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {{-- Recherche --}}
                     <div>
@@ -155,7 +155,7 @@
                             </svg>
                             Filtrer
                         </button>
-                        <a href="{{ route('factures.index') }}" class="btn btn-outline">Réinitialiser</a>
+                        <a href="{{ route('factures.global.index') }}" class="btn btn-outline">Réinitialiser</a>
                     </div>
                     
                     {{-- Tri --}}
