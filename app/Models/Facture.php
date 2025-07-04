@@ -91,12 +91,13 @@ protected $fillable = [
         $montantHT = $this->lignes->sum('montant_ht');
         $montantTVA = $this->lignes->sum('montant_tva');
         $montantTTC = $montantHT + $montantTVA;
+        $montantPaye = $this->montant_paye ?? 0;
 
        $this->updateQuietly([
             'montant_ht' => $montantHT,
             'montant_tva' => $montantTVA,
             'montant_ttc' => $montantTTC,
-            'montant_restant' => $montantTTC - $this->montant_paye,
+            'montant_restant' => $montantTTC - $montantPaye,
         ]);
     }
 
@@ -260,7 +261,9 @@ protected static function boot()
             $facture->date_echeance = now()->addDays($facture->delai_paiement ?? 30);
         }
         
-        $facture->montant_restant = $facture->montant_ttc;
+        // Initialiser montant_restant à 0 lors de la création
+        // Il sera recalculé correctement après la création des lignes
+        $facture->montant_restant = 0;
     });
 
     static::created(function ($facture) {

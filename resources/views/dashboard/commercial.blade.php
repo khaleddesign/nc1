@@ -184,10 +184,10 @@
                         <i class="fas fa-file-invoice mr-2 text-success-500"></i>Devis de Chantiers Acceptés
                     </h5>
                     <div class="flex gap-2">
-                        <a href="{{ route('devis.global.index') }}" class="btn btn-outline-primary btn-sm">
+                        <a href="{{ route('devis.index') }}" class="btn btn-outline-primary btn-sm">
                             <i class="fas fa-list mr-1"></i>Voir Tous
                         </a>
-                        <a href="{{ route('devis.global.create') }}" class="btn btn-primary btn-sm">
+                        <a href="{{ route('devis.create') }}" class="btn btn-primary btn-sm">
                             <i class="fas fa-plus mr-1"></i>Nouveau Devis
                         </a>
                     </div>
@@ -249,7 +249,7 @@
                             <i class="fas fa-handshake text-4xl text-gray-400 mb-4"></i>
                             <h6 class="text-lg font-semibold text-gray-900 mb-2">Aucun devis accepté</h6>
                             <p class="text-gray-500 mb-4">Les devis acceptés par vos clients apparaîtront ici</p>
-                            <a href="{{ route('devis.global.create') }}" class="btn btn-primary btn-sm">
+                            <a href="{{ route('devis.create') }}" class="btn btn-primary btn-sm">
                                 <i class="fas fa-plus mr-2"></i>Créer un devis
                             </a>
                         </div>
@@ -264,10 +264,10 @@
                         <i class="fas fa-clock mr-2 text-primary-500"></i>Mon Pipeline (Devis en Cours)
                     </h5>
                     <div class="flex gap-2">
-                        <a href="{{ route('devis.global.index') }}" class="btn btn-outline-primary btn-sm">
+                        <a href="{{ route('devis.index') }}" class="btn btn-outline-primary btn-sm">
                             <i class="fas fa-list mr-1"></i>Tous les Devis
                         </a>
-                        <a href="{{ route('devis.global.create') }}" class="btn btn-primary btn-sm">
+                        <a href="{{ route('devis.create') }}" class="btn btn-primary btn-sm">
                             <i class="fas fa-plus mr-1"></i>Nouveau Devis
                         </a>
                     </div>
@@ -339,7 +339,7 @@
                             <i class="fas fa-file-invoice text-4xl text-gray-400 mb-4"></i>
                             <h6 class="text-lg font-semibold text-gray-900 mb-2">Aucun devis en cours</h6>
                             <p class="text-gray-500 mb-4">Créez votre premier devis pour alimenter votre pipeline</p>
-                            <a href="{{ route('devis.global.create') }}" class="btn btn-primary btn-sm">
+                            <a href="{{ route('devis.create') }}" class="btn btn-primary btn-sm">
                                 <i class="fas fa-plus mr-2"></i>Créer un devis
                             </a>
                         </div>
@@ -402,7 +402,7 @@
                         <a href="{{ route('chantiers.create') }}" class="btn btn-primary w-full">
                             <i class="fas fa-building mr-2"></i>Nouveau Chantier
                         </a>
-                        <a href="{{ route('devis.global.create') }}" class="btn btn-success w-full">
+                        <a href="{{ route('devis.create') }}" class="btn btn-success w-full">
                             <i class="fas fa-file-invoice mr-2"></i>Nouveau Devis
                         </a>
                         <a href="{{ route('chantiers.calendrier') }}" class="btn btn-outline-secondary w-full">

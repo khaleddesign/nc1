@@ -26,12 +26,12 @@
                 </div>
                 @can('commercial-or-admin')
                 <div class="mt-4 flex md:mt-0 md:ml-4">
-                    <a href="{{ route('chantiers.index') }}" class="btn btn-primary">
+                    <button onclick="openModal('modal-selection-chantier')" class="btn btn-primary">
                         <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                         </svg>
                         Nouvelle Facture
-                    </a>
+                    </button>
                 </div>
                 @endcan
             </div>
@@ -81,7 +81,7 @@
     {{-- Filtres et recherche --}}
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <form method="GET" action="{{ route('factures.global.index') }}" class="space-y-4">
+            <form method="GET" action="{{ route('factures.index') }}" class="space-y-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {{-- Recherche --}}
                     <div>
@@ -155,7 +155,7 @@
                             </svg>
                             Filtrer
                         </button>
-                        <a href="{{ route('factures.global.index') }}" class="btn btn-outline">Réinitialiser</a>
+                        <a href="{{ route('factures.index') }}" class="btn btn-outline">Réinitialiser</a>
                     </div>
                     
                     {{-- Tri --}}
@@ -320,5 +320,92 @@
             @endif
         </div>
     </div>
+
+    {{-- Modal de sélection de chantier --}}
+    <div id="modal-selection-chantier" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+        <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div class="mt-3">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-medium text-gray-900">Créer une facture</h3>
+                    <button onclick="closeModal('modal-selection-chantier')" class="text-gray-400 hover:text-gray-600">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </div>
+                
+                <p class="text-sm text-gray-600 mb-4">
+                    Pour créer une facture, vous devez d'abord sélectionner un chantier :
+                </p>
+                
+                <div class="space-y-3 max-h-60 overflow-y-auto">
+                    @php
+                        // Récupérer les chantiers de l'utilisateur
+                        $mesChantiers = Auth::user()->isAdmin() 
+                            ? \App\Models\Chantier::with('client')->where('statut', '!=', 'termine')->latest()->take(20)->get()
+                            : Auth::user()->chantiersCommercial()->with('client')->where('statut', '!=', 'termine')->latest()->take(20)->get();
+                    @endphp
+                    
+                    @forelse($mesChantiers as $chantier)
+                        <a href="{{ route('chantiers.factures.create', $chantier) }}" 
+                           class="flex items-center justify-between p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                            <div>
+                                <div class="font-medium text-gray-900">{{ $chantier->titre }}</div>
+                                <div class="text-sm text-gray-500">{{ $chantier->client->name }}</div>
+                            </div>
+                            <div class="flex items-center">
+                                <span class="text-xs px-2 py-1 bg-{{ $chantier->statut === 'en_cours' ? 'blue' : 'gray' }}-100 text-{{ $chantier->statut === 'en_cours' ? 'blue' : 'gray' }}-800 rounded-full">
+                                    {{ ucfirst($chantier->statut) }}
+                                </span>
+                                <svg class="w-4 h-4 ml-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                </svg>
+                            </div>
+                        </a>
+                    @empty
+                        <div class="text-center py-6">
+                            <p class="text-gray-500">Aucun chantier actif trouvé.</p>
+                            <a href="{{ route('chantiers.create') }}" class="text-blue-600 hover:text-blue-800 text-sm">
+                                Créer un nouveau chantier
+                            </a>
+                        </div>
+                    @endforelse
+                </div>
+                
+                <div class="mt-6 flex justify-between">
+                    <a href="{{ route('chantiers.index') }}" class="text-blue-600 hover:text-blue-800 text-sm">
+                        Voir tous les chantiers
+                    </a>
+                    <button onclick="closeModal('modal-selection-chantier')" 
+                            class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
+                        Annuler
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function openModal(modalId) {
+        document.getElementById(modalId).classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    function closeModal(modalId) {
+        document.getElementById(modalId).classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
+
+    // Fermer avec Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modals = document.querySelectorAll('.fixed.inset-0:not(.hidden)');
+            modals.forEach(modal => {
+                modal.classList.add('hidden');
+            });
+            document.body.classList.remove('overflow-hidden');
+        }
+    });
+    </script>
 </div>
 @endsection

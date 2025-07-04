@@ -1,5 +1,5 @@
 <?php
-// routes/web.php - VERSION CORRIGÉE PROGRESSIVE
+// routes/web.php - VERSION CORRIGÉE
 
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Auth;
@@ -19,16 +19,18 @@ use App\Http\Controllers\PaiementController;
 
 /*
 |--------------------------------------------------------------------------
-| ÉTAPE 1 : CORRECTION DES ROUTES DUPLIQUÉES
+| Page d'accueil
 |--------------------------------------------------------------------------
 */
-
-// Page d'accueil
 Route::get('/', function () {
     return Auth::check() ? redirect()->route('dashboard') : redirect()->route('login');
 });
 
-// Routes d'authentification
+/*
+|--------------------------------------------------------------------------
+| Routes d'authentification
+|--------------------------------------------------------------------------
+*/
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'showLoginForm'])->name('login');
     Route::post('/login', [LoginController::class, 'login']);
@@ -49,10 +51,9 @@ Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
 
 /*
 |--------------------------------------------------------------------------
-| ROUTES PROTÉGÉES - ORDRE CRITIQUE RESPECTÉ
+| ROUTES PROTÉGÉES
 |--------------------------------------------------------------------------
 */
-
 Route::middleware(['auth'])->group(function () {
     
     // Dashboard
@@ -77,23 +78,28 @@ Route::middleware(['auth'])->group(function () {
     
     /*
     |--------------------------------------------------------------------------
-    | DEVIS - STRUCTURE CLAIRE PROSPECT vs CHANTIER
+    | 🔥 DEVIS - CORRECTION DES CONFLITS DE ROUTES
     |--------------------------------------------------------------------------
     */
     
-    // A. DEVIS GLOBAUX (prospects + vue d'ensemble)
-    Route::prefix('devis')->name('devis.global.')->group(function () {
+    // A. DEVIS GLOBAUX (prospects + vue d'ensemble) - Routes spécifiques AVANT {devis}
+    Route::prefix('devis')->name('devis.')->group(function () {
         Route::get('/', [DevisController::class, 'globalIndex'])->name('index');
-        Route::get('prospects', [DevisController::class, 'prospects'])->name('prospects'); // 🆕 NOUVEAU
+        Route::get('prospects', [DevisController::class, 'prospects'])->name('prospects');
         Route::get('create', [DevisController::class, 'globalCreate'])->name('create');
         Route::post('/', [DevisController::class, 'globalStore'])->name('store');
-        Route::get('{devis}', [DevisController::class, 'globalShow'])->name('show');
         
-        // 🆕 Actions spécifiques aux prospects
+        // 🆕 Actions spécifiques aux prospects - AVANT la route show générale
         Route::post('{devis}/convert-to-chantier', [DevisController::class, 'convertToChantier'])->name('convert-to-chantier');
+        Route::get('{devis}/convert-form', [DevisController::class, 'showConversionForm'])->name('convert-form');
+        Route::post('{devis}/add-negotiation', [DevisController::class, 'ajouterVersionNegociation'])->name('add-negotiation');
+        Route::get('{devis}/negotiation-history', [DevisController::class, 'historiqueNegociation'])->name('negotiation-history');
+        
+        // Route générale show à la fin
+        Route::get('{devis}', [DevisController::class, 'globalShow'])->name('show');
     });
     
-    // B. DEVIS LIÉS AUX CHANTIERS (flux B)
+    // B. DEVIS LIÉS AUX CHANTIERS (flux traditionnel)
     Route::prefix('chantiers/{chantier}')->name('chantiers.devis.')->group(function () {
         Route::get('devis', [DevisController::class, 'index'])->name('index');
         Route::get('devis/create', [DevisController::class, 'create'])->name('create');
@@ -103,7 +109,7 @@ Route::middleware(['auth'])->group(function () {
         Route::put('devis/{devis}', [DevisController::class, 'update'])->name('update');
         Route::delete('devis/{devis}', [DevisController::class, 'destroy'])->name('destroy');
         
-        // Actions
+        // Actions sur les devis
         Route::post('devis/{devis}/envoyer', [DevisController::class, 'envoyer'])->name('envoyer');
         Route::post('devis/{devis}/accepter', [DevisController::class, 'accepter'])->name('accepter');
         Route::post('devis/{devis}/refuser', [DevisController::class, 'refuser'])->name('refuser');
@@ -122,14 +128,18 @@ Route::middleware(['auth'])->group(function () {
     
     /*
     |--------------------------------------------------------------------------
-    | FACTURES - Structure similaire
+    | FACTURES - Structure similaire aux devis
     |--------------------------------------------------------------------------
     */
-    Route::prefix('factures')->name('factures.global.')->group(function () {
+    
+    // A. FACTURES GLOBALES (vue d'ensemble)
+    Route::prefix('factures')->name('factures.')->group(function () {
         Route::get('/', [FactureController::class, 'globalIndex'])->name('index');
+        Route::get('create', [FactureController::class, 'globalCreate'])->name('create');
         Route::get('{facture}', [FactureController::class, 'globalShow'])->name('show');
     });
     
+    // B. FACTURES LIÉES AUX CHANTIERS
     Route::prefix('chantiers/{chantier}')->name('chantiers.factures.')->group(function () {
         Route::get('factures', [FactureController::class, 'index'])->name('index');
         Route::get('factures/create', [FactureController::class, 'create'])->name('create');
@@ -206,10 +216,10 @@ Route::middleware(['auth'])->group(function () {
     
     /*
     |--------------------------------------------------------------------------
-    | ADMINISTRATION
+    | ADMINISTRATION - Middleware role:admin ajouté
     |--------------------------------------------------------------------------
     */
-    Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+    Route::middleware(['role:admin'])->prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [AdminController::class, 'index'])->name('index');
         Route::get('dashboard', [AdminController::class, 'index'])->name('dashboard');
         
@@ -229,10 +239,10 @@ Route::middleware(['auth'])->group(function () {
     
     /*
     |--------------------------------------------------------------------------
-    | RAPPORTS
+    | RAPPORTS - Middleware commercial ou admin
     |--------------------------------------------------------------------------
     */
-    Route::middleware(['auth', 'role:commercial,admin'])->prefix('reports')->name('reports.')->group(function () {
+    Route::middleware(['role:commercial,admin'])->prefix('reports')->name('reports.')->group(function () {
         Route::get('/', [App\Http\Controllers\ReportController::class, 'dashboard'])->name('dashboard');
         Route::get('dashboard', [App\Http\Controllers\ReportController::class, 'dashboard'])->name('dashboard.main');
         Route::get('chiffre-affaires', [App\Http\Controllers\ReportController::class, 'chiffreAffaires'])->name('chiffre-affaires');
@@ -335,3 +345,4 @@ Route::fallback(function () {
     
     return redirect()->route('login')->with('error', 'Page non trouvée');
 });
+

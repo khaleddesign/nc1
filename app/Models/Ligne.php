@@ -130,6 +130,19 @@ class Ligne extends Model
             if (!$ligne->quantite) {
                 $ligne->quantite = 1;
             }
+
+            // Calculer les montants lors de la création
+            $montantHtBrut = $ligne->quantite * $ligne->prix_unitaire_ht;
+            $remiseMontant = $ligne->remise_pourcentage > 0 ? 
+                $montantHtBrut * ($ligne->remise_pourcentage / 100) : 0;
+            $montantHt = $montantHtBrut - $remiseMontant;
+            $montantTva = $montantHt * ($ligne->taux_tva / 100);
+            $montantTtc = $montantHt + $montantTva;
+
+            $ligne->montant_ht = $montantHt;
+            $ligne->montant_tva = $montantTva;
+            $ligne->montant_ttc = $montantTtc;
+            $ligne->remise_montant = $remiseMontant;
         });
 
         // ÉVÉNEMENT SAVED COMMENTÉ POUR ÉVITER LA BOUCLE INFINIE
