@@ -1,0 +1,45 @@
+=== ANALYSE MODULE DEVIS/FACTURES ===
+=== ROUTES DEVIS ===
+85:    // A. DEVIS GLOBAUX (prospects + vue d'ensemble) - Routes spécifiques AVANT {devis}
+86:    Route::prefix('devis')->name('devis.')->group(function () {
+93:        Route::post('{devis}/convert-to-chantier', [DevisController::class, 'convertToChantier'])->name('convert-to-chantier');
+94:        Route::get('{devis}/convert-form', [DevisController::class, 'showConversionForm'])->name('convert-form');
+95:        Route::post('{devis}/add-negotiation', [DevisController::class, 'ajouterVersionNegociation'])->name('add-negotiation');
+96:        Route::get('{devis}/negotiation-history', [DevisController::class, 'historiqueNegociation'])->name('negotiation-history');
+99:        Route::get('{devis}', [DevisController::class, 'globalShow'])->name('show');
+103:    Route::prefix('chantiers/{chantier}')->name('chantiers.devis.')->group(function () {
+104:        Route::get('devis', [DevisController::class, 'index'])->name('index');
+105:        Route::get('devis/create', [DevisController::class, 'create'])->name('create');
+106:        Route::post('devis', [DevisController::class, 'store'])->name('store');
+107:        Route::get('devis/{devis}', [DevisController::class, 'show'])->name('show');
+108:        Route::get('devis/{devis}/edit', [DevisController::class, 'edit'])->name('edit');
+109:        Route::put('devis/{devis}', [DevisController::class, 'update'])->name('update');
+110:        Route::delete('devis/{devis}', [DevisController::class, 'destroy'])->name('destroy');
+112:        // Actions sur les devis
+113:        Route::post('devis/{devis}/envoyer', [DevisController::class, 'envoyer'])->name('envoyer');
+114:        Route::post('devis/{devis}/accepter', [DevisController::class, 'accepter'])->name('accepter');
+115:        Route::post('devis/{devis}/refuser', [DevisController::class, 'refuser'])->name('refuser');
+116:        Route::post('devis/{devis}/convertir-facture', [DevisController::class, 'convertirEnFacture'])->name('convertir-facture');
+117:        Route::post('devis/{devis}/dupliquer', [DevisController::class, 'dupliquer'])->name('dupliquer');
+120:        Route::get('devis/{devis}/pdf', [DevisController::class, 'downloadPdf'])->name('pdf');
+121:        Route::get('devis/{devis}/preview', [DevisController::class, 'previewPdf'])->name('preview');
+124:        Route::post('devis/{devis}/generer-conformite', [DevisController::class, 'genererConformite'])->name('generer-conformite');
+125:        Route::get('devis/{devis}/export-electronique/{format}', [DevisController::class, 'exportElectronique'])->name('export-electronique');
+126:        Route::get('devis/{devis}/verifier-integrite', [DevisController::class, 'verifierIntegrite'])->name('verifier-integrite');
+131:    | FACTURES - Structure similaire aux devis
+321:| ROUTES PUBLIQUES (devis clients)
+324:Route::get('/devis-public/{devis}/{token}', [DevisController::class, 'showPublic'])
+325:    ->name('devis.public.show')
+328:Route::post('/devis-public/{devis}/{token}/reponse', [DevisController::class, 'storePublicResponse'])
+329:    ->name('devis.public.reponse')
+=== STRUCTURE VUES ===
+resources/views/devis
+resources/views/emails/devis
+resources/views/emails/factures
+resources/views/emails/confirmation-devis.blade.php
+resources/views/pdf/devis.blade.php
+resources/views/pdf/facture.blade.php
+resources/views/factures
+=== DONNÉES DEVIS ===
+
+Devis:Chantiers:

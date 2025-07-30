@@ -589,9 +589,10 @@ class DevisController extends Controller
         ];
         
         // Validation conditionnelle pour les prospects
-        if ($request->input('type_devis') === 'nouveau_prospect') {
-            $rules['client_email'] .= '|unique:users,email';
-        }
+if ($request->input('type_devis') === 'nouveau_prospect') {
+    // Seuls les nouveaux prospects ont besoin de vérifier l'unicité de l'email
+    $rules['client_email'] = 'required|email|unique:users,email';
+}
         
         return $request->validate($rules);
     }
@@ -649,75 +650,53 @@ class DevisController extends Controller
         $devis->calculerMontants();
     }
 
-    private function createGlobalDevisWithLines(array $validated, Request $request)
-    {
-        if ($validated['type_devis'] === 'chantier_existant') {
-            $chantier = Chantier::with('client')->findOrFail($validated['chantier_id']);
-            $clientInfo = [
-                'nom' => $chantier->client->name,
-                'email' => $chantier->client->email,
-                'telephone' => $chantier->client->telephone,
-                'adresse' => $chantier->client->adresse,
-            ];
-            $chantier_id = $chantier->id;
-        } else {
-            $clientInfo = [
-                'nom' => $validated['client_nom'],
-                'email' => $validated['client_email'],
-                'telephone' => $validated['client_telephone'] ?? null,
-                'adresse' => $validated['client_adresse'] ?? null,
-            ];
+   private function createGlobalDevisWithLines(array $validated, Request $request)
+{
+    if ($validated['type_devis'] === 'chantier_existant') {
+        // Devis pour chantier existant
+        $chantier = Chantier::with('client')->findOrFail($validated['chantier_id']);
+        $clientInfo = [
+            'nom' => $chantier->client->name,
+            'email' => $chantier->client->email,
+            'telephone' => $chantier->client->telephone,
+            'adresse' => $chantier->client->adresse,
+        ];
+        $chantier_id = $chantier->id;
+    } else {
+        // Devis prospect - PAS de chantier
+        $clientInfo = [
+            'nom' => $validated['client_nom'],
+            'email' => $validated['client_email'],
+            'telephone' => $validated['client_telephone'] ?? null,
+            'adresse' => $validated['client_adresse'] ?? null,
+        ];
+        $chantier_id = null; // Pas de chantier pour les prospects
+    }
 
-            $client = User::firstOrCreate(
-                ['email' => $validated['client_email']],
-                [
-                    'name' => $validated['client_nom'],
-                    'role' => 'client',
-                    'telephone' => $validated['client_telephone'] ?? null,
-                    'adresse' => $validated['client_adresse'] ?? null,
-                    'password' => Hash::make('temp_password_' . time()),
-                    'email_verified_at' => now(),
-                ]
-            );
+ $devis = Devis::create([
+    'chantier_id' => $chantier_id,
+    'commercial_id' => Auth::id(),
+    'type_devis' => $validated['type_devis'] === 'chantier_existant' ? Devis::TYPE_CHANTIER : Devis::TYPE_PROSPECT,
+    'statut' => $validated['type_devis'] === 'chantier_existant' ? 'brouillon' : null,
+    'statut_prospect' => $validated['type_devis'] === 'nouveau_prospect' ? Devis::STATUT_PROSPECT_BROUILLON : null,
+    'titre' => $validated['titre'],
+    'description' => $validated['description'],
+    'date_validite' => $validated['date_validite'],
+    'taux_tva' => $validated['taux_tva'],
+    'delai_realisation' => $validated['delai_realisation'],
+    'modalites_paiement' => $validated['modalites_paiement'],
+    'conditions_generales' => $validated['conditions_generales'],
+    'notes_internes' => $validated['notes_internes'],
+    'client_info' => $clientInfo,
+]);
 
-            $chantier = Chantier::create([
-                'client_id' => $client->id,
-                'commercial_id' => Auth::id(),
-                'titre' => 'Prospect - ' . $validated['titre'],
-                'description' => 'Chantier créé automatiquement pour devis prospect',
-                'statut' => 'planifie',
-                'date_debut' => now()->addDays(30),
-            ]);
+    $this->createLignesForDevis($devis, $validated['lignes'], $validated['taux_tva']);
+    $devis->calculerMontants();
 
-            $clientInfo = [
-                'nom' => $validated['client_nom'],
-                'email' => $validated['client_email'],
-                'telephone' => $validated['client_telephone'] ?? null,
-                'adresse' => $validated['client_adresse'] ?? null,
-            ];
-            $chantier_id = $chantier->id;
-        }
+    if ($request->input('action') === 'save_and_send') {
+        $devis->marquerEnvoye();
 
-        $devis = Devis::create([
-            'chantier_id' => $chantier_id,
-            'commercial_id' => Auth::id(),
-            'titre' => $validated['titre'],
-            'description' => $validated['description'],
-            'date_validite' => $validated['date_validite'],
-            'taux_tva' => $validated['taux_tva'],
-            'delai_realisation' => $validated['delai_realisation'],
-            'modalites_paiement' => $validated['modalites_paiement'],
-            'conditions_generales' => $validated['conditions_generales'],
-            'notes_internes' => $validated['notes_internes'],
-            'client_info' => $clientInfo,
-        ]);
-
-        $this->createLignesForDevis($devis, $validated['lignes'], $validated['taux_tva']);
-        $devis->calculerMontants();
-
-        if ($request->input('action') === 'save_and_send') {
-            $devis->marquerEnvoye();
-
+        if ($chantier_id) {
             Notification::creerNotificationDevis(
                 $chantier->client_id,
                 $devis,
@@ -726,9 +705,10 @@ class DevisController extends Controller
                 "Un nouveau devis '{$devis->titre}' vous a été envoyé."
             );
         }
-
-        return $devis;
     }
+
+    return $devis;
+}
 
     private function createLignesForDevis(Devis $devis, array $lignesData, float $tauxTvaDefaut)
     {

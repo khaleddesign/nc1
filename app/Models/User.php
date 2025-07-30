@@ -238,6 +238,35 @@ class User extends Authenticatable implements MustVerifyEmail
 
         return $stats;
     }
+    public function hasActiveChantiers(): bool
+    {
+        return $this->getActiveChantiers()->isNotEmpty();
+    }
+    
+    public function getActiveChantiers()
+    {
+        // Pour un client
+        if ($this->isClient()) {
+            return $this->chantiers()->where('statut', 'actif');
+        }
+    
+        // Pour un commercial
+        if ($this->isCommercial()) {
+            return $this->chantiersCommercial()->where('statut', 'actif');
+        }
+    
+        // Pour un admin : tous les chantiers actifs
+        if ($this->isAdmin()) {
+            return \App\Models\Chantier::where('statut', 'actif');
+        }
+    
+        // Par défaut
+        return collect();
+    }
+    
+
+
+    
 
     // Boot method
     protected static function boot()
@@ -254,3 +283,5 @@ class User extends Authenticatable implements MustVerifyEmail
         });
     }
 }
+
+

@@ -24,13 +24,13 @@
                                     <svg class="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
                                         <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                                     </svg>
-                                    @if($devis->chantier)
-                                        <a href="{{ route('chantiers.show', $devis->chantier) }}" class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700">
-                                            {{ $devis->chantier->titre }}
-                                        </a>
-                                    @else
-                                        <span class="ml-4 text-sm font-medium text-gray-500">Devis prospect</span>
-                                    @endif
+                                   @if($devis->chantier)
+    <a href="{{ $devis->chantier ? route('chantiers.show', $devis->chantier) : "#" }}" class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700">
+        {{ $devis->chantier->titre }}
+    </a>
+@else
+    <span class="ml-4 text-sm font-medium text-gray-500">Devis prospect</span>
+@endif
                                 </div>
                             </li>
                             <li>
@@ -53,20 +53,18 @@
                     </div>
                 </div>
                 <div class="mt-4 flex space-x-3 md:mt-0 md:ml-4">
-                    @if($devis->chantier)
-                        <a href="{{ route('chantiers.devis.show', [$devis->chantier, $devis]) }}" 
-                           class="btn btn-outline">
-                            Voir dans le chantier
+                    <a href="{{ $devis->chantier ? route('chantiers.devis.show', [$devis->chantier, $devis]) : "#" }}" 
+                       class="btn btn-outline">
+                        Voir dans le chantier
+                    </a>
+                    @if($devis->statut !== 'brouillon')
+                        <a href="{{ route('chantiers.devis.pdf', [$devis->chantier, $devis]) }}" 
+                           class="btn btn-secondary" target="_blank">
+                            <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                            </svg>
+                            Télécharger PDF
                         </a>
-                        @if($devis->statut !== 'brouillon')
-                            <a href="{{ route('chantiers.devis.pdf', [$devis->chantier, $devis]) }}" 
-                               class="btn btn-secondary" target="_blank">
-                                <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                    <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m.75 12l3 3m0 0l3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-                                </svg>
-                                Télécharger PDF
-                            </a>
-                        @endif
                     @endif
                 </div>
             </div>
@@ -188,162 +186,116 @@
 
             {{-- Colonne latérale --}}
             <div class="space-y-6">
-                {{-- Informations du chantier ou prospect --}}
-                @if($devis->chantier)
-                    {{-- Section chantier --}}
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4">Chantier associé</h3>
-                        <div class="space-y-3">
-                            <div>
-                                <dt class="text-sm font-medium text-gray-500">Titre</dt>
-                                <dd class="mt-1">
-                                    <a href="{{ route('chantiers.show', $devis->chantier) }}"
-                                        class="text-blue-600 hover:text-blue-800 font-medium">
-                                        {{ $devis->chantier->titre }}
-                                    </a>
-                                </dd>
-                            </div>
-                            <div>
-                                <dt class="text-sm font-medium text-gray-500">Statut du chantier</dt>
-                                <dd class="mt-1">
-                                    @php
-                                        $statutColors = [
-                                            'planifie' => 'bg-gray-100 text-gray-800',
-                                            'en_cours' => 'bg-blue-100 text-blue-800',
-                                            'termine' => 'bg-green-100 text-green-800',
-                                            'annule' => 'bg-red-100 text-red-800'
-                                        ];
-                                    @endphp
-                                    <span class="badge {{ $statutColors[$devis->chantier->statut] ?? 'bg-gray-100 text-gray-800' }}">
-                                        {{ ucfirst(str_replace('_', ' ', $devis->chantier->statut)) }}
-                                    </span>
-                                </dd>
-                            </div>
-                            <div>
-                                <dt class="text-sm font-medium text-gray-500">Dates</dt>
-                                <dd class="mt-1 text-sm text-gray-900">
-                                    <div>Début : {{ $devis->chantier->date_debut?->format('d/m/Y') ?? 'N/A' }}</div>
-                                    <div>Fin prévue : {{ $devis->chantier->date_fin_prevue?->format('d/m/Y') ?? 'N/A' }}</div>
-                                </dd>
-                            </div>
+                {{-- Informations du chantier --}}
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Chantier associé</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Titre</dt>
+                            <dd class="mt-1">
+                                <a href="{{ $devis->chantier ? route('chantiers.show', $devis->chantier) : "#" }}" 
+                                   class="text-blue-600 hover:text-blue-800 font-medium">
+                                    {{ $devis->chantier->titre }}
+                                </a>
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Statut du chantier</dt>
+                            <dd class="mt-1">
+                                @php
+                                    $statutColors = [
+                                        'planifie' => 'bg-gray-100 text-gray-800',
+                                        'en_cours' => 'bg-blue-100 text-blue-800',
+                                        'termine' => 'bg-green-100 text-green-800',
+                                        'annule' => 'bg-red-100 text-red-800'
+                                    ];
+                                @endphp
+                                <span class="badge {{ $statutColors[$devis->chantier->statut] ?? 'bg-gray-100 text-gray-800' }}">
+                                    {{ ucfirst(str_replace('_', ' ', $devis->chantier->statut)) }}
+                                </span>
+                            </dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Dates</dt>
+                            <dd class="mt-1 text-sm text-gray-900">
+                                <div>Début : {{ $devis->chantier->date_debut?->format('d/m/Y') ?? 'N/A' }}</div>
+                                <div>Fin prévue : {{ $devis->chantier->date_fin_prevue?->format('d/m/Y') ?? 'N/A' }}</div>
+                            </dd>
                         </div>
                     </div>
+                </div>
 
-                    {{-- Informations du client --}}
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4">Client</h3>
-                        <div class="space-y-3">
+                {{-- Informations du client --}}
+                <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Client</h3>
+                    <div class="space-y-3">
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Nom</dt>
+                            <dd class="mt-1 text-sm text-gray-900 font-medium">{{ $devis->chantier->client->name }}</dd>
+                        </div>
+                        <div>
+                            <dt class="text-sm font-medium text-gray-500">Email</dt>
+                            <dd class="mt-1">
+                                <a href="mailto:{{ $devis->chantier->client->email }}" 
+                                   class="text-blue-600 hover:text-blue-800 text-sm">
+                                    {{ $devis->chantier->client->email }}
+                                </a>
+                            </dd>
+                        </div>
+                        @if($devis->chantier->client->telephone)
                             <div>
-                                <dt class="text-sm font-medium text-gray-500">Nom</dt>
-                                <dd class="mt-1 text-sm text-gray-900 font-medium">{{ $devis->chantier->client->name }}</dd>
-                            </div>
-                            <div>
-                                <dt class="text-sm font-medium text-gray-500">Email</dt>
+                                <dt class="text-sm font-medium text-gray-500">Téléphone</dt>
                                 <dd class="mt-1">
-                                    <a href="mailto:{{ $devis->chantier->client->email }}" 
+                                    <a href="tel:{{ $devis->chantier->client->telephone }}" 
                                        class="text-blue-600 hover:text-blue-800 text-sm">
-                                        {{ $devis->chantier->client->email }}
+                                        {{ $devis->chantier->client->telephone }}
                                     </a>
                                 </dd>
                             </div>
-                            @if($devis->chantier->client->telephone)
-                                <div>
-                                    <dt class="text-sm font-medium text-gray-500">Téléphone</dt>
-                                    <dd class="mt-1">
-                                        <a href="tel:{{ $devis->chantier->client->telephone }}" 
-                                           class="text-blue-600 hover:text-blue-800 text-sm">
-                                            {{ $devis->chantier->client->telephone }}
-                                        </a>
-                                    </dd>
-                                </div>
-                            @endif
-                            @if($devis->chantier->client->adresse)
-                                <div>
-                                    <dt class="text-sm font-medium text-gray-500">Adresse</dt>
-                                    <dd class="mt-1 text-sm text-gray-900">{{ $devis->chantier->client->adresse }}</dd>
-                                </div>
-                            @endif
-                        </div>
-                    </div>
-                @else
-                    {{-- Section prospect --}}
-                    <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-                        <h3 class="text-lg font-medium text-gray-900 mb-4">Informations du prospect</h3>
-                        <div class="space-y-3">
+                        @endif
+                        @if($devis->chantier->client->adresse)
                             <div>
-                                <dt class="text-sm font-medium text-gray-500">Nom</dt>
-                                <dd class="mt-1 text-sm text-gray-900 font-medium">{{ $devis->client_info['nom'] ?? 'N/A' }}</dd>
+                                <dt class="text-sm font-medium text-gray-500">Adresse</dt>
+                                <dd class="mt-1 text-sm text-gray-900">{{ $devis->chantier->client->adresse }}</dd>
                             </div>
-                            <div>
-                                <dt class="text-sm font-medium text-gray-500">Email</dt>
-                                <dd class="mt-1">
-                                    @if(!empty($devis->client_info['email']))
-                                        <a href="mailto:{{ $devis->client_info['email'] }}" 
-                                           class="text-blue-600 hover:text-blue-800 text-sm">
-                                            {{ $devis->client_info['email'] }}
-                                        </a>
-                                    @else
-                                        <span class="text-gray-500 text-sm">N/A</span>
-                                    @endif
-                                </dd>
-                            </div>
-                            @if(!empty($devis->client_info['telephone']))
-                                <div>
-                                    <dt class="text-sm font-medium text-gray-500">Téléphone</dt>
-                                    <dd class="mt-1">
-                                        <a href="tel:{{ $devis->client_info['telephone'] }}" 
-                                           class="text-blue-600 hover:text-blue-800 text-sm">
-                                            {{ $devis->client_info['telephone'] }}
-                                        </a>
-                                    </dd>
-                                </div>
-                            @endif
-                            @if(!empty($devis->client_info['adresse']))
-                                <div>
-                                    <dt class="text-sm font-medium text-gray-500">Adresse</dt>
-                                    <dd class="mt-1 text-sm text-gray-900">{{ $devis->client_info['adresse'] }}</dd>
-                                </div>
-                            @endif
-                        </div>
+                        @endif
                     </div>
-                @endif
+                </div>
 
                 {{-- Actions rapides --}}
                 @can('commercial-or-admin')
                     <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
                         <h3 class="text-lg font-medium text-gray-900 mb-4">Actions</h3>
                         <div class="space-y-3">
-                            @if($devis->chantier)
-                                <a href="{{ route('chantiers.devis.edit', [$devis->chantier, $devis]) }}" 
-                                   class="block w-full btn btn-outline text-center">
-                                    <svg class="w-4 h-4 inline mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                                    </svg>
-                                    Modifier le devis
-                                </a>
+                            <a href="{{ route('chantiers.devis.edit', [$devis->chantier, $devis]) }}" 
+                               class="block w-full btn btn-outline text-center">
+                                <svg class="w-4 h-4 inline mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                                </svg>
+                                Modifier le devis
+                            </a>
 
-                                @if($devis->statut === 'accepte' && !$devis->facture)
-                                    <form method="POST" action="{{ route('chantiers.devis.convertir-facture', [$devis->chantier, $devis]) }}" 
-                                          onsubmit="return confirm('Voulez-vous vraiment convertir ce devis en facture ?')">
-                                        @csrf
-                                        <button type="submit" class="w-full btn btn-success">
-                                            <svg class="w-4 h-4 inline mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                                                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M16.5 18.75h-9A2.25 2.25 0 015.25 16.5v-10.5A2.25 2.25 0 017.5 3.75h1.5m0 0h6m-6 0v1.5m6-1.5v1.5m6 1.5v10.5a2.25 2.25 0 01-2.25 2.25H13.5m-6-0h6m-6 3h6" />
-                                            </svg>
-                                            Convertir en facture
-                                        </button>
-                                    </form>
-                                @endif
-
-                                @if($devis->facture)
-                                    <a href="{{ route('factures.show', $devis->facture) }}" 
-                                       class="block w-full btn btn-secondary text-center">
+                            @if($devis->statut === 'accepte' && !$devis->facture)
+                                <form method="POST" action="{{ route('chantiers.devis.convertir-facture', [$devis->chantier, $devis]) }}" 
+                                      onsubmit="return confirm('Voulez-vous vraiment convertir ce devis en facture ?')">
+                                    @csrf
+                                    <button type="submit" class="w-full btn btn-success">
                                         <svg class="w-4 h-4 inline mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M16.5 18.75h-9A2.25 2.25 0 015.25 16.5v-10.5A2.25 2.25 0 017.5 3.75h1.5m0 0h6m-6 0v1.5m6-1.5v1.5m6 1.5v10.5a2.25 2.25 0 01-2.25 2.25H13.5m-6-0h6m-6 3h6" />
                                         </svg>
-                                        Voir la facture {{ $devis->facture->numero }}
-                                    </a>
-                                @endif
+                                        Convertir en facture
+                                    </button>
+                                </form>
+                            @endif
+
+                            @if($devis->facture)
+                                <a href="{{ route('factures.show', $devis->facture) }}" 
+                                   class="block w-full btn btn-secondary text-center">
+                                    <svg class="w-4 h-4 inline mr-2" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25M16.5 18.75h-9A2.25 2.25 0 015.25 16.5v-10.5A2.25 2.25 0 017.5 3.75h1.5m0 0h6m-6 0v1.5m6-1.5v1.5m6 1.5v10.5a2.25 2.25 0 01-2.25 2.25H13.5m-6-0h6m-6 3h6" />
+                                    </svg>
+                                    Voir la facture {{ $devis->facture->numero }}
+                                </a>
                             @endif
                         </div>
                     </div>

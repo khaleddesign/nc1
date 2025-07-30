@@ -1,8 +1,8 @@
 <?php
+// app/Models/Devis.php - VERSION ENRICHIE
 
 namespace App\Models;
 
-use App\Enums\StatutDevis;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
@@ -15,19 +15,18 @@ class Devis extends Model
 
     protected $fillable = [
         'numero', 'chantier_id', 'commercial_id', 'titre', 'description',
-        'statut', 'client_info', 'date_emission', 'date_validite', 
-        'date_envoi', 'date_reponse', 'montant_ht', 'montant_tva', 
-        'montant_ttc', 'taux_tva', 'conditions_generales', 
-        'delai_realisation', 'modalites_paiement', 'signature_client', 
-        'signed_at', 'signature_ip', 'facture_id', 'converted_at', 
-        'notes_internes', 'chantier_converti_id', 'date_conversion_chantier', 
-        'historique_negociation', 'historique_statuts', 'reference_externe',
+        'statut', 'type_devis', 'statut_prospect', 'client_info', 
+        'date_emission', 'date_validite', 'date_envoi', 'date_reponse', 
+        'montant_ht', 'montant_tva', 'montant_ttc', 'taux_tva', 
+        'conditions_generales', 'delai_realisation', 'modalites_paiement', 
+        'signature_client', 'signed_at', 'signature_ip', 'facture_id', 
+        'converted_at', 'notes_internes', 'chantier_converti_id', 
+        'date_conversion', 'historique_negociation', 'reference_externe',
         'donnees_structurees', 'format_electronique', 'hash_integrite',
         'conforme_loi', 'date_transmission', 'numero_chronologique'
     ];
 
     protected $casts = [
-        'statut' => StatutDevis::class, // ← CAST ENUM AJOUTÉ
         'client_info' => 'array',
         'date_emission' => 'date',
         'date_validite' => 'date',
@@ -35,7 +34,7 @@ class Devis extends Model
         'date_reponse' => 'datetime',
         'signed_at' => 'datetime',
         'converted_at' => 'datetime',
-        'date_conversion_chantier' => 'datetime',
+        'date_conversion' => 'datetime',
         'montant_ht' => 'decimal:2',
         'montant_tva' => 'decimal:2',
         'montant_ttc' => 'decimal:2',
@@ -43,10 +42,25 @@ class Devis extends Model
         'delai_realisation' => 'integer',
         'donnees_structurees' => 'array',
         'historique_negociation' => 'array',
-        'historique_statuts' => 'array',
         'conforme_loi' => 'boolean',
         'date_transmission' => 'datetime',
     ];
+
+    // ====================================================
+    // CONSTANTES POUR LES FLUX
+    // ====================================================
+    
+    const TYPE_PROSPECT = 'prospect';
+    const TYPE_CHANTIER = 'chantier';
+    const TYPE_CONVERTI = 'converti';
+    
+    const STATUT_PROSPECT_BROUILLON = 'brouillon';
+    const STATUT_PROSPECT_ENVOYE = 'envoye';
+    const STATUT_PROSPECT_NEGOCIE = 'negocie';
+    const STATUT_PROSPECT_ACCEPTE = 'accepte';
+    const STATUT_PROSPECT_REFUSE = 'refuse';
+    const STATUT_PROSPECT_EXPIRE = 'expire';
+    const STATUT_PROSPECT_CONVERTI = 'converti';
 
     // ====================================================
     // RELATIONS
@@ -81,7 +95,7 @@ class Devis extends Model
     }
 
     // ====================================================
-    // SCOPES POUR L'ENUM UNIFIÉ
+    // SCOPES POUR LES FLUX
     // ====================================================
 
     /**
@@ -89,12 +103,7 @@ class Devis extends Model
      */
     public function scopeProspects($query)
     {
-        return $query->whereIn('statut', [
-            StatutDevis::PROSPECT_BROUILLON->value,
-            StatutDevis::PROSPECT_ENVOYE->value,
-            StatutDevis::PROSPECT_NEGOCIE->value,
-            StatutDevis::PROSPECT_ACCEPTE->value,
-        ]);
+        return $query->where('type_devis', self::TYPE_PROSPECT);
     }
 
     /**
@@ -102,11 +111,15 @@ class Devis extends Model
      */
     public function scopeChantiers($query)
     {
-        return $query->whereIn('statut', [
-            StatutDevis::CHANTIER_VALIDE->value,
-            StatutDevis::FACTURABLE->value,
-            StatutDevis::FACTURE->value,
-        ]);
+        return $query->where('type_devis', self::TYPE_CHANTIER);
+    }
+
+    /**
+     * Scope pour les devis convertis
+     */
+    public function scopeConvertis($query)
+    {
+        return $query->where('type_devis', self::TYPE_CONVERTI);
     }
 
     /**
@@ -114,10 +127,11 @@ class Devis extends Model
      */
     public function scopeEnNegociation($query)
     {
-        return $query->whereIn('statut', [
-            StatutDevis::PROSPECT_ENVOYE->value,
-            StatutDevis::PROSPECT_NEGOCIE->value,
-        ]);
+        return $query->prospects()
+                    ->whereIn('statut_prospect', [
+                        self::STATUT_PROSPECT_ENVOYE,
+                        self::STATUT_PROSPECT_NEGOCIE
+                    ]);
     }
 
     /**
@@ -125,36 +139,13 @@ class Devis extends Model
      */
     public function scopeConvertibles($query)
     {
-        return $query->where('statut', StatutDevis::PROSPECT_ACCEPTE->value)
+        return $query->prospects()
+                    ->where('statut_prospect', self::STATUT_PROSPECT_ACCEPTE)
                     ->whereNull('chantier_converti_id');
     }
 
-    /**
-     * Scope pour les devis facturables
-     */
-    public function scopeFacturables($query)
-    {
-        return $query->where('statut', StatutDevis::FACTURABLE->value);
-    }
-
-    /**
-     * Scope pour un commercial spécifique
-     */
-    public function scopePourCommercial($query, $commercialId)
-    {
-        return $query->where('commercial_id', $commercialId);
-    }
-
-    /**
-     * Scope pour un chantier spécifique
-     */
-    public function scopePourChantier($query, $chantierId)
-    {
-        return $query->where('chantier_id', $chantierId);
-    }
-
     // ====================================================
-    // MÉTHODES MÉTIER AVEC ENUM
+    // MÉTHODES MÉTIER POUR LES FLUX
     // ====================================================
 
     /**
@@ -162,7 +153,7 @@ class Devis extends Model
      */
     public function isProspect(): bool
     {
-        return $this->statut->isProspect();
+        return $this->type_devis === self::TYPE_PROSPECT;
     }
 
     /**
@@ -170,7 +161,15 @@ class Devis extends Model
      */
     public function isChantier(): bool
     {
-        return $this->statut->isChantier();
+        return $this->type_devis === self::TYPE_CHANTIER;
+    }
+
+    /**
+     * Vérifier si c'est un prospect converti
+     */
+    public function isConverti(): bool
+    {
+        return $this->type_devis === self::TYPE_CONVERTI;
     }
 
     /**
@@ -178,140 +177,10 @@ class Devis extends Model
      */
     public function peutEtreConverti(): bool
     {
-        return $this->statut->peutEtreConverti() && !$this->chantier_converti_id;
+        return $this->isProspect() && 
+               $this->statut_prospect === self::STATUT_PROSPECT_ACCEPTE &&
+               !$this->chantier_converti_id;
     }
-
-    /**
-     * Vérifier si le devis peut être modifié
-     */
-    public function peutEtreModifie(): bool
-    {
-        return $this->statut->peutEtreModifie() && !$this->facture_id;
-    }
-
-    /**
-     * Vérifier si le devis peut être accepté
-     */
-    public function peutEtreAccepte(): bool
-    {
-        return $this->statut->peutEtreAccepte() && !$this->isExpire();
-    }
-
-    /**
-     * Vérifier si le devis peut être envoyé
-     */
-    public function peutEtreEnvoye(): bool
-    {
-        return $this->statut->peutEtreEnvoye();
-    }
-
-    /**
-     * Vérifier si le devis peut être facturé
-     */
-    public function peutEtreFacture(): bool
-    {
-        return $this->statut->peutEtreFacture();
-    }
-
-    /**
-     * Vérifier si le devis est expiré
-     */
-    public function isExpire(): bool
-    {
-        return $this->date_validite && 
-               $this->date_validite->isPast() && 
-               in_array($this->statut, [
-                   StatutDevis::PROSPECT_ENVOYE,
-                   StatutDevis::PROSPECT_NEGOCIE
-               ]);
-    }
-
-    // ====================================================
-    // ACTIONS DE CHANGEMENT DE STATUT
-    // ====================================================
-
-    /**
-     * Changer le statut avec historique
-     */
-public function changerStatut(StatutDevis $nouveauStatut, ?string $motif = null): void
-    {
-        $ancienStatut = $this->statut;
-        
-        // Ajouter à l'historique
-        $historique = $this->historique_statuts ?? [];
-        $historique[] = [
-            'ancien_statut' => $ancienStatut->value,
-            'nouveau_statut' => $nouveauStatut->value,
-            'date' => now()->toISOString(),
-            'motif' => $motif,
-            'utilisateur' => auth()->user()?->name,
-        ];
-
-        $this->update([
-            'statut' => $nouveauStatut,
-            'historique_statuts' => $historique,
-        ]);
-    }
-
-    /**
-     * Marquer le devis comme envoyé
-     */
-    public function marquerEnvoye(): void
-    {
-        if ($this->isProspect()) {
-            $this->changerStatut(StatutDevis::PROSPECT_ENVOYE, 'Devis envoyé au prospect');
-        } else {
-            $this->changerStatut(StatutDevis::CHANTIER_VALIDE, 'Devis envoyé au client');
-        }
-        
-        $this->update(['date_envoi' => now()]);
-    }
-
-    /**
-     * Accepter le devis
-     */
-    public function accepter(): void
-    {
-        if ($this->isProspect()) {
-            $this->changerStatut(StatutDevis::PROSPECT_ACCEPTE, 'Devis accepté par le prospect');
-        } else {
-            $this->changerStatut(StatutDevis::FACTURABLE, 'Devis accepté par le client');
-        }
-        
-        $this->update(['date_reponse' => now()]);
-    }
-
-    /**
-     * Refuser le devis
-     */
-    public function refuser(): void
-    {
-        // Note: Il faudrait ajouter un statut REFUSE dans l'enum si nécessaire
-        $this->update(['date_reponse' => now()]);
-    }
-
-    /**
-     * Marquer comme facturable
-     */
-    public function marquerFacturable(): void
-    {
-        if ($this->statut === StatutDevis::CHANTIER_VALIDE) {
-            $this->changerStatut(StatutDevis::FACTURABLE, 'Chantier prêt à facturer');
-        }
-    }
-
-    /**
-     * Marquer comme facturé
-     */
-    public function marquerFacture(int $factureId): void
-    {
-        $this->changerStatut(StatutDevis::FACTURE, 'Devis converti en facture');
-        $this->update(['facture_id' => $factureId]);
-    }
-
-    // ====================================================
-    // CONVERSION PROSPECT → CHANTIER
-    // ====================================================
 
     /**
      * Convertir un devis prospect en chantier
@@ -335,24 +204,28 @@ public function changerStatut(StatutDevis $nouveauStatut, ?string $motif = null)
                 'date_debut' => $donnees_chantier['date_debut'] ?? now()->addDays(7),
                 'date_fin_prevue' => $donnees_chantier['date_fin_prevue'] ?? now()->addDays(30),
                 'budget' => $this->montant_ttc,
-                'notes' => $donnees_chantier['notes'] ?? "Chantier créé à partir du devis prospect {$this->numero}",
+                'notes' => "Chantier créé à partir du devis prospect {$this->numero}",
             ]);
 
             // Mettre à jour le devis prospect
             $this->update([
+                'type_devis' => self::TYPE_CONVERTI,
+                'statut_prospect' => self::STATUT_PROSPECT_CONVERTI,
                 'chantier_converti_id' => $chantier->id,
-                'date_conversion_chantier' => now(),
+                'date_conversion' => now(),
             ]);
 
             // Créer un nouveau devis lié au chantier (copie du prospect)
             $devis_chantier = $this->replicate([
-                'id', 'numero', 'created_at', 'updated_at',
-                'chantier_converti_id', 'date_conversion_chantier'
+                'id', 'numero', 'created_at', 'updated_at', 'type_devis',
+                'statut_prospect', 'chantier_converti_id', 'date_conversion'
             ]);
             
             $devis_chantier->fill([
                 'chantier_id' => $chantier->id,
-                'statut' => StatutDevis::CHANTIER_VALIDE,
+                'type_devis' => self::TYPE_CHANTIER,
+                'statut' => 'accepte',
+                'statut_prospect' => null,
                 'titre' => $this->titre . ' (Chantier)',
             ]);
             
@@ -399,9 +272,8 @@ public function changerStatut(StatutDevis $nouveauStatut, ?string $motif = null)
 
         $this->update([
             'historique_negociation' => $historique,
+            'statut_prospect' => self::STATUT_PROSPECT_NEGOCIE
         ]);
-        
-        $this->changerStatut(StatutDevis::PROSPECT_NEGOCIE, $motif);
     }
 
     /**
@@ -435,7 +307,7 @@ public function changerStatut(StatutDevis $nouveauStatut, ?string $motif = null)
     }
 
     // ====================================================
-    // CALCULS ET NUMÉROTATION
+    // MÉTHODES MÉTIER EXISTANTES (conservées)
     // ====================================================
 
     public function calculerMontants(): void
@@ -488,23 +360,127 @@ public function changerStatut(StatutDevis $nouveauStatut, ?string $motif = null)
         return sprintf('DEV-%s-%03d', $annee, $numero);
     }
 
+    public function isExpire(): bool
+    {
+        return $this->date_validite->isPast() && 
+               in_array($this->getStatutActuel(), ['envoye', 'negocie']);
+    }
+
+    public function peutEtreModifie(): bool
+    {
+        $statut = $this->getStatutActuel();
+        
+        if ($this->isProspect()) {
+            return in_array($statut, ['brouillon', 'envoye', 'negocie']) && !$this->chantier_converti_id;
+        }
+        
+        return in_array($statut, ['brouillon', 'envoye']) && !$this->facture_id;
+    }
+
+    public function peutEtreAccepte(): bool
+    {
+        $statut = $this->getStatutActuel();
+        
+        if ($this->isProspect()) {
+            return in_array($statut, ['envoye', 'negocie']) && !$this->isExpire();
+        }
+        
+        return $statut === 'envoye' && !$this->isExpire();
+    }
+
+    /**
+     * Obtenir le statut actuel selon le type de devis
+     */
+public function getStatutActuel(): string
+{
+    if ($this->isProspect()) {
+        return $this->statut_prospect ?? self::STATUT_PROSPECT_BROUILLON;
+    }
+    
+    return $this->statut ?? 'brouillon';
+}
+
+
+    public function accepter(): void
+    {
+        if ($this->isProspect()) {
+            $this->update([
+                'statut_prospect' => self::STATUT_PROSPECT_ACCEPTE,
+                'date_reponse' => now(),
+            ]);
+        } else {
+            $this->update([
+                'statut' => 'accepte',
+                'date_reponse' => now(),
+            ]);
+        }
+    }
+
+    public function refuser(): void
+    {
+        if ($this->isProspect()) {
+            $this->update([
+                'statut_prospect' => self::STATUT_PROSPECT_REFUSE,
+                'date_reponse' => now(),
+            ]);
+        } else {
+            $this->update([
+                'statut' => 'refuse',
+                'date_reponse' => now(),
+            ]);
+        }
+    }
+
+    public function marquerEnvoye(): void
+    {
+        if ($this->isProspect()) {
+            $this->update([
+                'statut_prospect' => self::STATUT_PROSPECT_ENVOYE,
+                'date_envoi' => now(),
+            ]);
+        } else {
+            $this->update([
+                'statut' => 'envoye',
+                'date_envoi' => now(),
+            ]);
+        }
+    }
+
     // ====================================================
-    // ACCESSEURS AMÉLIORÉS AVEC ENUM
+    // ACCESSEURS AMÉLIORÉS
     // ====================================================
 
     public function getStatutBadgeClass(): string
     {
-        return $this->statut->badgeClass();
+        $statut = $this->getStatutActuel();
+        
+        return match ($statut) {
+            'brouillon' => 'bg-gray-100 text-gray-800',
+            'envoye' => 'bg-blue-100 text-blue-800',
+            'negocie' => 'bg-yellow-100 text-yellow-800',
+            'accepte' => 'bg-green-100 text-green-800',
+            'refuse' => 'bg-red-100 text-red-800',
+            'expire' => 'bg-orange-100 text-orange-800',
+            'converti' => 'bg-purple-100 text-purple-800',
+            default => 'bg-gray-100 text-gray-800',
+        };
     }
 
     public function getStatutTexte(): string
     {
-        return $this->statut->label();
-    }
-
-    public function getStatutIcon(): string
-    {
-        return $this->statut->icon();
+        $statut = $this->getStatutActuel();
+        
+        $textes = [
+            'brouillon' => 'Brouillon',
+            'envoye' => 'Envoyé',
+            'negocie' => 'En négociation',
+            'accepte' => 'Accepté',
+            'refuse' => 'Refusé',
+            'expire' => 'Expiré',
+            'converti' => 'Converti en chantier',
+        ];
+        
+        return $textes[$statut] ?? 'Inconnu';
     }
 
     public function getClientNomAttribute(): string
@@ -512,25 +488,17 @@ public function changerStatut(StatutDevis $nouveauStatut, ?string $motif = null)
         return $this->client_info['nom'] ?? $this->chantier?->client?->name ?? 'Client inconnu';
     }
 
-    public function getClientEmailAttribute(): string
-    {
-        return $this->client_info['email'] ?? $this->chantier?->client?->email ?? '';
-    }
-
     /**
      * Obtenir le type de devis avec emoji pour l'affichage
      */
     public function getTypeDevisTexte(): string
     {
-        return $this->isProspect() ? '🎯 Prospect' : '🏗️ Chantier';
-    }
-
-    /**
-     * Obtenir les prochains statuts possibles
-     */
-    public function getProchainStatutsPossibles(): array
-    {
-        return $this->statut->getProchainStatutsPossibles();
+        return match ($this->type_devis) {
+            self::TYPE_PROSPECT => '🎯 Prospect',
+            self::TYPE_CHANTIER => '🏗️ Chantier',
+            self::TYPE_CONVERTI => '✅ Converti',
+            default => '❓ Inconnu',
+        };
     }
 
     // ====================================================
@@ -552,11 +520,14 @@ public function changerStatut(StatutDevis $nouveauStatut, ?string $motif = null)
                 $devis->date_validite = now()->addDays(30);
             }
             
-            // Définir le statut initial selon la présence d'un chantier
-            if (!$devis->statut) {
-                $devis->statut = $devis->chantier_id ? 
-                    StatutDevis::CHANTIER_VALIDE : 
-                    StatutDevis::PROSPECT_BROUILLON;
+            // Définir le type par défaut selon la présence d'un chantier
+            if (!$devis->type_devis) {
+                $devis->type_devis = $devis->chantier_id ? self::TYPE_CHANTIER : self::TYPE_PROSPECT;
+            }
+            
+            // Définir le statut initial selon le type
+            if ($devis->isProspect() && !$devis->statut_prospect) {
+                $devis->statut_prospect = self::STATUT_PROSPECT_BROUILLON;
             }
         });
 
@@ -584,25 +555,17 @@ public function changerStatut(StatutDevis $nouveauStatut, ?string $motif = null)
 
     public function genererConformiteElectronique(): void
     {
-        if (class_exists(\App\Services\FacturationElectroniqueService::class)) {
-            app(\App\Services\FacturationElectroniqueService::class)->marquerConformeDevis($this);
-        }
+        app(\App\Services\FacturationElectroniqueService::class)->marquerConformeDevis($this);
     }
 
     public function verifierIntegriteElectronique(): bool
     {
-        if (class_exists(\App\Services\FacturationElectroniqueService::class)) {
-            return app(\App\Services\FacturationElectroniqueService::class)->verifierIntegriteDevis($this);
-        }
-        return true;
+        return app(\App\Services\FacturationElectroniqueService::class)->verifierIntegriteDevis($this);
     }
 
     public function exporterFormatElectronique(string $format = 'json'): array
     {
-        if (class_exists(\App\Services\FacturationElectroniqueService::class)) {
-            return app(\App\Services\FacturationElectroniqueService::class)->exporterFormatElectroniqueDevis($this, $format);
-        }
-        return [];
+        return app(\App\Services\FacturationElectroniqueService::class)->exporterFormatElectroniqueDevis($this, $format);
     }
 
     public function getStatutConformiteAttribute(): string
