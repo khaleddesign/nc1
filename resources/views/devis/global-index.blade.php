@@ -195,17 +195,12 @@
                                         <span class="font-medium text-gray-900">{{ number_format($devisItem->montant_ttc ?? 0, 2, ',', ' ') }} €</span>
                                     </td>
                                     <td>
-                                        @php
-                                            $colors = [
-                                                'brouillon' => 'bg-gray-100 text-gray-800',
-                                                'envoye' => 'bg-yellow-100 text-yellow-800',
-                                                'accepte' => 'bg-green-100 text-green-800',
-                                                'refuse' => 'bg-red-100 text-red-800'
-                                            ];
-                                        @endphp
-                                        <span class="badge {{ $colors[$devisItem->statut] ?? 'bg-gray-100 text-gray-800' }}">
-                                            {{ ucfirst($devisItem->statut) }}
-                                        </span>
+                                     @php
+    $statutValue = is_object($devisItem->statut) ? $devisItem->statut->value : $devisItem->statut;
+@endphp
+<span class="badge bg-blue-100 text-blue-800">
+    {{ ucfirst($statutValue) }}
+</span>
                                     </td>
                                     <td>
                                         <span class="text-sm text-gray-500">{{ $devisItem->created_at->format('d/m/Y') }}</span>

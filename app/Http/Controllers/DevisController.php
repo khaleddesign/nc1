@@ -12,6 +12,10 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use App\Enums\StatutDevis;
+
+
+
 
 class DevisController extends Controller
 {
@@ -1080,8 +1084,9 @@ if ($request->input('type_devis') === 'nouveau_prospect') {
     {
         $devis = Devis::create([
             'commercial_id' => Auth::id(),
-            'type_devis' => Devis::TYPE_PROSPECT,
-            'statut_prospect' => Devis::STATUT_PROSPECT_BROUILLON,
+           'statut' => StatutDevis::PROSPECT_BROUILLON,
+
+
             'titre' => $validated['titre'],
             'description' => $validated['description'],
             'date_validite' => $validated['date_validite'],

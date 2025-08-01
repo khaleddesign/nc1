@@ -80,29 +80,33 @@ return new class extends Migration
     /**
      * Migrer les données existantes vers le nouveau format (Compatible SQLite/MySQL)
      */
-    private function migrateExistingData(): void
-    {
-        $dateNow = now()->toDateTimeString();
-        $driver = DB::getDriverName();
-
-        // Sauvegarder les anciennes valeurs (compatible multi-base)
-        if ($driver === 'sqlite') {
-            // SQLite : Utiliser une approche simplifiée
-            DB::update("
-                UPDATE devis 
-                SET backup_statuts = json('{\"type_devis\":\"' || COALESCE(type_devis, '') || '\",\"statut\":\"' || COALESCE(statut, '') || '\",\"statut_prospect\":\"' || COALESCE(statut_prospect, '') || '\"}')
-            ");
-        } else {
-            // MySQL/PostgreSQL
-            DB::update("
-                UPDATE devis 
-                SET backup_statuts = JSON_OBJECT(
-                    'type_devis', type_devis,
-                    'statut', statut,
-                    'statut_prospect', statut_prospect
-                )
-            ");
-        }
+private function migrateExistingData(): void
+{
+    $dateNow = now()->toDateTimeString();
+    
+    // Pas besoin de backup puisque les anciennes colonnes n'existent plus
+    // On s'assure juste que tous les devis ont un statut valide
+    
+    DB::update("
+        UPDATE devis 
+        SET statut_unifie = CASE 
+            WHEN statut IS NOT NULL THEN statut
+            WHEN chantier_id IS NULL THEN 'prospect_brouillon'
+            ELSE 'chantier_valide'
+        END
+        WHERE statut_unifie IS NULL
+    ");
+    
+    // Historique simple
+    DB::update("
+        UPDATE devis 
+        SET historique_statuts = COALESCE(
+            historique_statuts, 
+            json('[{\"migration\":\"correction\",\"date\":\"$dateNow\"}]')
+        )
+        WHERE historique_statuts IS NULL
+    ");
+}
 
         // Initialiser l'historique des statuts (simplifié pour SQLite)
         if ($driver === 'sqlite') {
